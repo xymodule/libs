@@ -14,10 +14,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-import (
-	"services/proto"
-)
-
 var (
 	ERROR_SERVICE_NOT_AVAILABLE = errors.New("service not available")
 )
