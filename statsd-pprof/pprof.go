@@ -29,7 +29,7 @@ func init() {
 
 	s, err := g2s.Dial("udp", addr)
 	if err != nil {
-		log.Critical(err)
+		println(err)
 		os.Exit(-1)
 	}
 	_statter = s
