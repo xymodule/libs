@@ -213,8 +213,8 @@ func (p *service_pool) get_service_with_id(service_name, id string) (interface{}
 		return proto.NewWordFilterServiceClient(conn), nil
 	case SERVICE_BGSAVE:
 		return proto.NewBgSaveServiceClient(conn), nil
-	case SERVICE_LOGIN:
-		return proto.NewLoginServiceClient(conn), nil
+	case SERVICE_AUTH:
+		return proto.NewAuthServiceClient(conn), nil
 	case SERVICE_CHAT:
 		return proto.NewChatServiceClient(conn), nil
 	case SERVICE_GAME:
@@ -247,8 +247,8 @@ func (p *service_pool) get_service(name ServiceType) (interface{}, error) {
 		return proto.NewWordFilterServiceClient(service.clients[pa].conn), nil
 	case SERVICE_BGSAVE:
 		return proto.NewBgSaveServiceClient(service.clients[pa].conn), nil
-	case SERVICE_LOGIN:
-		return proto.NewLoginServiceClient(service.clients[pa].conn), nil
+	case SERVICE_AUTH:
+		return proto.NewAuthServiceClient(service.clients[pa].conn), nil
 	case SERVICE_CHAT:
 		return proto.NewChatServiceClient(service.clients[pa].conn), nil
 	case SERVICE_GAME:
