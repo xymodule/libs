@@ -8,4 +8,6 @@ const (
 	SERVICE_WORDFILTER = ServiceType("/backends/wordfilter")
 	SERVICE_BGSAVE     = ServiceType("/backends/bgsave")
 	SERVICE_LOGIN      = ServiceType("/backends/login")
+	SERVICE_CHAT       = ServiceType("/backends/chat")
+	SERVICE_GAME       = ServiceType("/backends/game_server")
 )

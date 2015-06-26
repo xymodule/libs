@@ -215,6 +215,10 @@ func (p *service_pool) get_service_with_id(service_name, id string) (interface{}
 		return proto.NewBgSaveServiceClient(conn), nil
 	case SERVICE_LOGIN:
 		return proto.NewLoginServiceClient(conn), nil
+	case SERVICE_CHAT:
+		return proto.NewChatServiceClient(conn), nil
+	case SERVICE_GAME:
+		return proto.NewGameServiceClient(conn), nil
 	}
 	return nil, ERROR_SERVICE_NOT_AVAILABLE
 }
@@ -233,17 +237,23 @@ func (p *service_pool) get_service(name ServiceType) (interface{}, error) {
 	idx := int(atomic.AddUint32(&service.idx, 1))
 
 	// add wrappers here ...
+	pa := idx % len(service.clients)
 	switch name {
 	case SERVICE_SNOWFLAKE:
-		return proto.NewSnowflakeServiceClient(service.clients[idx%len(service.clients)].conn), nil
+		return proto.NewSnowflakeServiceClient(service.clients[pa].conn), nil
 	case SERVICE_GEOIP:
-		return proto.NewGeoIPServiceClient(service.clients[idx%len(service.clients)].conn), nil
+		return proto.NewGeoIPServiceClient(service.clients[pa].conn), nil
 	case SERVICE_WORDFILTER:
-		return proto.NewWordFilterServiceClient(service.clients[idx%len(service.clients)].conn), nil
+		return proto.NewWordFilterServiceClient(service.clients[pa].conn), nil
 	case SERVICE_BGSAVE:
-		return proto.NewBgSaveServiceClient(service.clients[idx%len(service.clients)].conn), nil
+		return proto.NewBgSaveServiceClient(service.clients[pa].conn), nil
 	case SERVICE_LOGIN:
-		return proto.NewLoginServiceClient(service.clients[idx%len(service.clients)].conn), nil
+		return proto.NewLoginServiceClient(service.clients[pa].conn), nil
+	case SERVICE_CHAT:
+		return proto.NewChatServiceClient(service.clients[pa].conn), nil
+	case SERVICE_GAME:
+		return proto.NewGameServiceClient(service.clients[pa].conn), nil
+
 	}
 	return nil, ERROR_SERVICE_NOT_AVAILABLE
 }
