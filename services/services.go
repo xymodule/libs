@@ -258,6 +258,46 @@ func (p *service_pool) get_service(name ServiceType) (interface{}, error) {
 	return nil, ERROR_SERVICE_NOT_AVAILABLE
 }
 
+func (p *service_pool) get_all_service(name ServiceType) ([]interface{}, error) {
+	p.RLock()
+	defer p.RUnlock()
+	service := p.services[string(name)]
+	if service == nil {
+		return nil, ERROR_SERVICE_NOT_AVAILABLE
+	}
+
+	if len(service.clients) == 0 {
+		return nil, ERROR_SERVICE_NOT_AVAILABLE
+	}
+
+	// all services
+	var conns []interface{}
+	for k, v := range service.clients {
+		switch name {
+		case SERVICE_SNOWFLAKE:
+			conns[k] = proto.NewSnowflakeServiceClient(v.conn)
+		case SERVICE_GEOIP:
+			conns[k] = proto.NewGeoIPServiceClient(v.conn)
+		case SERVICE_WORDFILTER:
+			conns[k] = proto.NewWordFilterServiceClient(v.conn)
+		case SERVICE_BGSAVE:
+			conns[k] = proto.NewBgSaveServiceClient(v.conn)
+		case SERVICE_AUTH:
+			conns[k] = proto.NewAuthServiceClient(v.conn)
+		case SERVICE_CHAT:
+			conns[k] = proto.NewChatServiceClient(v.conn)
+		case SERVICE_GAME:
+			conns[k] = proto.NewGameServiceClient(v.conn)
+		}
+	}
+	return conns, nil
+}
+
+// choose a service randomly
+func GetAllService(name ServiceType) ([]interface{}, error) {
+	return _default_pool.get_all_service(name)
+}
+
 // choose a service randomly
 func GetService(name ServiceType) (interface{}, error) {
 	return _default_pool.get_service(name)

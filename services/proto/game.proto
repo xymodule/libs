@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package proto;
+
+// game definition
+service GameService {
+	rpc Packet(stream Game.Packet) returns (stream Game.Packet);  // 透传消息, 双向流
+	rpc Notify(Game.Nil) returns (stream Game.Packet);  // 通知消息, 服务流
+}
+
+message Game {
+	message Nil{}
+	message Packet {
+		int32 Uid=1;	// user id
+		bytes Content=2;
+	}
+}

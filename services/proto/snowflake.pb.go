@@ -2,15 +2,6 @@
 // source: snowflake.proto
 // DO NOT EDIT!
 
-/*
-Package proto is a generated protocol buffer package.
-
-It is generated from these files:
-	snowflake.proto
-
-It has these top-level messages:
-	Snowflake
-*/
 package proto
 
 import proto1 "github.com/golang/protobuf/proto"

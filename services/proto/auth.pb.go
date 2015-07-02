@@ -7,6 +7,12 @@ Package proto is a generated protocol buffer package.
 
 It is generated from these files:
 	auth.proto
+	bgsave.proto
+	chat.proto
+	game.proto
+	geoip.proto
+	rankserver.proto
+	snowflake.proto
 
 It has these top-level messages:
 	User
@@ -42,11 +48,11 @@ func (m *User_Nil) String() string { return proto1.CompactTextString(m) }
 func (*User_Nil) ProtoMessage()    {}
 
 type User_LoginInfo struct {
-	Uuid      string `protobuf:"bytes,1,opt,name=uuid" json:"uuid,omitempty"`
-	LoginType int32  `protobuf:"varint,2,opt,name=login_type" json:"login_type,omitempty"`
-	Username  string `protobuf:"bytes,3,opt,name=username" json:"username,omitempty"`
-	Passwd    string `protobuf:"bytes,4,opt,name=passwd" json:"passwd,omitempty"`
-	Host      string `protobuf:"bytes,5,opt,name=host" json:"host,omitempty"`
+	Uuid     string `protobuf:"bytes,1,opt,name=uuid" json:"uuid,omitempty"`
+	AuthType int32  `protobuf:"varint,2,opt,name=auth_type" json:"auth_type,omitempty"`
+	Username string `protobuf:"bytes,3,opt,name=username" json:"username,omitempty"`
+	Passwd   string `protobuf:"bytes,4,opt,name=passwd" json:"passwd,omitempty"`
+	Gsid     int32  `protobuf:"varint,5,opt,name=gsid" json:"gsid,omitempty"`
 }
 
 func (m *User_LoginInfo) Reset()         { *m = User_LoginInfo{} }
@@ -54,8 +60,9 @@ func (m *User_LoginInfo) String() string { return proto1.CompactTextString(m) }
 func (*User_LoginInfo) ProtoMessage()    {}
 
 type User_LoginResp struct {
-	Uid     int32 `protobuf:"varint,1,opt,name=uid" json:"uid,omitempty"`
-	NewUser bool  `protobuf:"varint,2,opt,name=new_user" json:"new_user,omitempty"`
+	Uid      int32  `protobuf:"varint,1,opt,name=uid" json:"uid,omitempty"`
+	UniqueId uint64 `protobuf:"varint,2,opt,name=unique_id" json:"unique_id,omitempty"`
+	Cert     string `protobuf:"bytes,3,opt,name=cert" json:"cert,omitempty"`
 }
 
 func (m *User_LoginResp) Reset()         { *m = User_LoginResp{} }
