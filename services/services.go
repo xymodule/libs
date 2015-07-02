@@ -177,11 +177,10 @@ func (p *service_pool) remove_service(key string) {
 
 // provide a specific key for a service
 // service must be stored like /backends/xxx_service/xxx_id
-func (p *service_pool) get_service_with_id(service_name, id string) (interface{}, error) {
+func (p *service_pool) get_service_with_id(name ServiceType, id string) (interface{}, error) {
 	p.RLock()
 	defer p.RUnlock()
-	name := DEFAULT_SERVICE_PATH + "/" + service_name
-	service := p.services[name]
+	service := p.services[string(name)]
 	if service == nil {
 		return nil, ERROR_SERVICE_NOT_AVAILABLE
 	}
@@ -191,7 +190,7 @@ func (p *service_pool) get_service_with_id(service_name, id string) (interface{}
 	}
 
 	var conn *grpc.ClientConn
-	fullpath := name + "/" + id
+	fullpath := string(name) + "/" + id
 	for k := range service.clients {
 		if service.clients[k].key == fullpath {
 			conn = service.clients[k].conn
@@ -204,7 +203,7 @@ func (p *service_pool) get_service_with_id(service_name, id string) (interface{}
 	}
 
 	// add wrappers here ...
-	switch ServiceType(name) {
+	switch name {
 	case SERVICE_SNOWFLAKE:
 		return proto.NewSnowflakeServiceClient(conn), nil
 	case SERVICE_GEOIP:
@@ -304,6 +303,6 @@ func GetService(name ServiceType) (interface{}, error) {
 }
 
 // get a specific service instance with given service_name and id
-func GetServiceWithId(service_name, id string) (interface{}, error) {
+func GetServiceWithId(service_name ServiceType, id string) (interface{}, error) {
 	return _default_pool.get_service_with_id(service_name, id)
 }
