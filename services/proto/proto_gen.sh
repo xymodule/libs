@@ -8,5 +8,6 @@ cp ../../../chat/chat.proto ./
 cp ../../../rank/rankserver.proto ./
 cp ../../../geoip/geoip.proto ./
 cp ../../../snowflake/snowflake.proto ./
+cp ../../../wordfilter/wordfilter.proto ./
 
 protoc  ./*.proto --go_out=plugins=grpc:./

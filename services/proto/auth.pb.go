@@ -13,6 +13,7 @@ It is generated from these files:
 	geoip.proto
 	rankserver.proto
 	snowflake.proto
+	wordfilter.proto
 
 It has these top-level messages:
 	User
