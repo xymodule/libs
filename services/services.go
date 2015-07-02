@@ -257,7 +257,7 @@ func (p *service_pool) get_service(name ServiceType) (interface{}, error) {
 	return nil, ERROR_SERVICE_NOT_AVAILABLE
 }
 
-func (p *service_pool) get_all_service(name ServiceType) ([]interface{}, error) {
+func (p *service_pool) get_all_service(name ServiceType) (map[string]interface{}, error) {
 	p.RLock()
 	defer p.RUnlock()
 	service := p.services[string(name)]
@@ -270,8 +270,9 @@ func (p *service_pool) get_all_service(name ServiceType) ([]interface{}, error) 
 	}
 
 	// all services
-	var conns []interface{}
-	for k, v := range service.clients {
+	var conns map[string]interface{}
+	for _, v := range service.clients {
+		k := v.key
 		switch name {
 		case SERVICE_SNOWFLAKE:
 			conns[k] = proto.NewSnowflakeServiceClient(v.conn)
@@ -293,7 +294,7 @@ func (p *service_pool) get_all_service(name ServiceType) ([]interface{}, error) 
 }
 
 // choose a service randomly
-func GetAllService(name ServiceType) ([]interface{}, error) {
+func GetAllService(name ServiceType) (map[string]interface{}, error) {
 	return _default_pool.get_all_service(name)
 }
 
