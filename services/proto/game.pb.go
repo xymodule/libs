@@ -18,6 +18,29 @@ var _ grpc.ClientConn
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto1.Marshal
 
+type Game_Ctrl int32
+
+const (
+	Game_Message    Game_Ctrl = 0
+	Game_Register   Game_Ctrl = 1
+	Game_Unregister Game_Ctrl = 2
+)
+
+var Game_Ctrl_name = map[int32]string{
+	0: "Message",
+	1: "Register",
+	2: "Unregister",
+}
+var Game_Ctrl_value = map[string]int32{
+	"Message":    0,
+	"Register":   1,
+	"Unregister": 2,
+}
+
+func (x Game_Ctrl) String() string {
+	return proto1.EnumName(Game_Ctrl_name, int32(x))
+}
+
 type Game struct {
 }
 
@@ -26,7 +49,9 @@ func (m *Game) String() string { return proto1.CompactTextString(m) }
 func (*Game) ProtoMessage()    {}
 
 type Game_Packet struct {
-	Content []byte `protobuf:"bytes,2,opt,proto3" json:"Content,omitempty"`
+	Ctrl    Game_Ctrl `protobuf:"varint,1,opt,name=ctrl,enum=proto.Game_Ctrl" json:"ctrl,omitempty"`
+	Content []byte    `protobuf:"bytes,2,opt,proto3" json:"Content,omitempty"`
+	UserId  int32     `protobuf:"varint,3,opt" json:"UserId,omitempty"`
 }
 
 func (m *Game_Packet) Reset()         { *m = Game_Packet{} }
@@ -34,6 +59,7 @@ func (m *Game_Packet) String() string { return proto1.CompactTextString(m) }
 func (*Game_Packet) ProtoMessage()    {}
 
 func init() {
+	proto1.RegisterEnum("proto.Game_Ctrl", Game_Ctrl_name, Game_Ctrl_value)
 }
 
 // Client API for GameService service
