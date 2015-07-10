@@ -68,7 +68,7 @@ func init() {
 // Client API for GameService service
 
 type GameServiceClient interface {
-	Packet(ctx context.Context, opts ...grpc.CallOption) (GameService_PacketClient, error)
+	Stream(ctx context.Context, opts ...grpc.CallOption) (GameService_StreamClient, error)
 }
 
 type gameServiceClient struct {
@@ -79,30 +79,30 @@ func NewGameServiceClient(cc *grpc.ClientConn) GameServiceClient {
 	return &gameServiceClient{cc}
 }
 
-func (c *gameServiceClient) Packet(ctx context.Context, opts ...grpc.CallOption) (GameService_PacketClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_GameService_serviceDesc.Streams[0], c.cc, "/proto.GameService/Packet", opts...)
+func (c *gameServiceClient) Stream(ctx context.Context, opts ...grpc.CallOption) (GameService_StreamClient, error) {
+	stream, err := grpc.NewClientStream(ctx, &_GameService_serviceDesc.Streams[0], c.cc, "/proto.GameService/Stream", opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &gameServicePacketClient{stream}
+	x := &gameServiceStreamClient{stream}
 	return x, nil
 }
 
-type GameService_PacketClient interface {
+type GameService_StreamClient interface {
 	Send(*Game_Frame) error
 	Recv() (*Game_Frame, error)
 	grpc.ClientStream
 }
 
-type gameServicePacketClient struct {
+type gameServiceStreamClient struct {
 	grpc.ClientStream
 }
 
-func (x *gameServicePacketClient) Send(m *Game_Frame) error {
+func (x *gameServiceStreamClient) Send(m *Game_Frame) error {
 	return x.ClientStream.SendMsg(m)
 }
 
-func (x *gameServicePacketClient) Recv() (*Game_Frame, error) {
+func (x *gameServiceStreamClient) Recv() (*Game_Frame, error) {
 	m := new(Game_Frame)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
@@ -113,32 +113,32 @@ func (x *gameServicePacketClient) Recv() (*Game_Frame, error) {
 // Server API for GameService service
 
 type GameServiceServer interface {
-	Packet(GameService_PacketServer) error
+	Stream(GameService_StreamServer) error
 }
 
 func RegisterGameServiceServer(s *grpc.Server, srv GameServiceServer) {
 	s.RegisterService(&_GameService_serviceDesc, srv)
 }
 
-func _GameService_Packet_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(GameServiceServer).Packet(&gameServicePacketServer{stream})
+func _GameService_Stream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(GameServiceServer).Stream(&gameServiceStreamServer{stream})
 }
 
-type GameService_PacketServer interface {
+type GameService_StreamServer interface {
 	Send(*Game_Frame) error
 	Recv() (*Game_Frame, error)
 	grpc.ServerStream
 }
 
-type gameServicePacketServer struct {
+type gameServiceStreamServer struct {
 	grpc.ServerStream
 }
 
-func (x *gameServicePacketServer) Send(m *Game_Frame) error {
+func (x *gameServiceStreamServer) Send(m *Game_Frame) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func (x *gameServicePacketServer) Recv() (*Game_Frame, error) {
+func (x *gameServiceStreamServer) Recv() (*Game_Frame, error) {
 	m := new(Game_Frame)
 	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
@@ -152,8 +152,8 @@ var _GameService_serviceDesc = grpc.ServiceDesc{
 	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "Packet",
-			Handler:       _GameService_Packet_Handler,
+			StreamName:    "Stream",
+			Handler:       _GameService_Stream_Handler,
 			ServerStreams: true,
 			ClientStreams: true,
 		},
