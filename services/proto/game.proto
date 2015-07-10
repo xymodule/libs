@@ -4,7 +4,7 @@ package proto;
 
 // game definition
 service GameService {
-	rpc Packet(stream Game.Packet) returns (stream Game.Packet);  // 透传消息, 双向流
+	rpc Packet(stream Game.Frame) returns (stream Game.Frame);  // 透传消息, 双向流
 }
 
 message Game {
@@ -14,7 +14,7 @@ message Game {
 		Unregister = 2;
 		Kick = 3;
 	}
-	message Packet {
+	message Frame {
 		FrameType Type=1;
 		bytes Content=2;
 		int32 UserId = 3;
