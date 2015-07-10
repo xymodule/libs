@@ -53,7 +53,7 @@ func (*Game) ProtoMessage()    {}
 
 type Game_Frame struct {
 	Type    Game_FrameType `protobuf:"varint,1,opt,enum=proto.Game_FrameType" json:"Type,omitempty"`
-	Content []byte         `protobuf:"bytes,2,opt,proto3" json:"Content,omitempty"`
+	Message []byte         `protobuf:"bytes,2,opt,proto3" json:"Message,omitempty"`
 	UserId  int32          `protobuf:"varint,3,opt" json:"UserId,omitempty"`
 }
 

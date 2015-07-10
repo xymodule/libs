@@ -16,7 +16,7 @@ message Game {
 	}
 	message Frame {
 		FrameType Type=1;
-		bytes Content=2;
+		bytes Message=2;
 		int32 UserId = 3;
 	}
 }
