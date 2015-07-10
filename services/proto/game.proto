@@ -8,13 +8,14 @@ service GameService {
 }
 
 message Game {
-	enum Ctrl{
+	enum FrameType {
 		Message = 0;
 		Register = 1;
 		Unregister = 2;
+		Kick = 3;
 	}
 	message Packet {
-		Ctrl ctrl=1;
+		FrameType Type=1;
 		bytes Content=2;
 		int32 UserId = 3;
 	}
