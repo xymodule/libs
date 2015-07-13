@@ -9,7 +9,7 @@ import (
 
 	"gopkg.in/mgo.v2"
 
-	log "github.com/GameGophers/libs/nsq-logger"
+	log "github.com/gonet2/libs/nsq-logger"
 )
 
 const (
