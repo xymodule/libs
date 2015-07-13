@@ -6,8 +6,8 @@ import (
 
 	"gopkg.in/vmihailenco/msgpack.v2"
 
-	"github.com/fzzy/radix/redis"
 	log "github.com/gonet2/libs/nsq-logger"
+	"github.com/fzzy/radix/redis"
 )
 
 const (

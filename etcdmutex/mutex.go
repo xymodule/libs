@@ -1,8 +1,8 @@
 package etcdmutex
 
 import (
-	"github.com/coreos/go-etcd/etcd"
 	log "github.com/gonet2/libs/nsq-logger"
+	"github.com/coreos/go-etcd/etcd"
 	"os"
 	"strings"
 	"sync"

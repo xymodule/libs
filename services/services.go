@@ -9,9 +9,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/coreos/go-etcd/etcd"
 	log "github.com/gonet2/libs/nsq-logger"
 	"github.com/gonet2/libs/services/proto"
+	"github.com/coreos/go-etcd/etcd"
 	"google.golang.org/grpc"
 )
 
