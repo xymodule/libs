@@ -25,6 +25,7 @@ const (
 	Game_Register   Game_FrameType = 1
 	Game_Unregister Game_FrameType = 2
 	Game_Kick       Game_FrameType = 3
+	Game_Ping       Game_FrameType = 4
 )
 
 var Game_FrameType_name = map[int32]string{
@@ -32,12 +33,14 @@ var Game_FrameType_name = map[int32]string{
 	1: "Register",
 	2: "Unregister",
 	3: "Kick",
+	4: "Ping",
 }
 var Game_FrameType_value = map[string]int32{
 	"Message":    0,
 	"Register":   1,
 	"Unregister": 2,
 	"Kick":       3,
+	"Ping":       4,
 }
 
 func (x Game_FrameType) String() string {
