@@ -9,5 +9,5 @@ const (
 	SERVICE_BGSAVE     = ServiceType("/backends/bgsave")
 	SERVICE_AUTH       = ServiceType("/backends/auth")
 	SERVICE_CHAT       = ServiceType("/backends/chat")
-	SERVICE_GAME       = ServiceType("/backends/game_server")
+	SERVICE_GAME       = ServiceType("/backends/game")
 )
