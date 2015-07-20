@@ -9,9 +9,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/coreos/go-etcd/etcd"
 	log "github.com/gonet2/libs/nsq-logger"
 	"github.com/gonet2/libs/services/proto"
-	"github.com/coreos/go-etcd/etcd"
 	"google.golang.org/grpc"
 )
 
@@ -270,7 +270,7 @@ func (p *service_pool) get_all_service(name ServiceType) (map[string]interface{}
 	}
 
 	// all services
-	var conns map[string]interface{}
+	conns := make(map[string]interface{})
 	for _, v := range service.clients {
 		k := v.key
 		switch name {
