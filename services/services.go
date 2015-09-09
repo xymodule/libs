@@ -1,7 +1,6 @@
 package services
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,14 +8,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	log "github.com/gonet2/libs/nsq-logger"
-	"github.com/gonet2/libs/services/proto"
 	"github.com/coreos/go-etcd/etcd"
+	log "github.com/gonet2/libs/nsq-logger"
 	"google.golang.org/grpc"
-)
-
-var (
-	ERROR_SERVICE_NOT_AVAILABLE = errors.New("service not available")
 )
 
 const (
@@ -175,135 +169,53 @@ func (p *service_pool) remove_service(key string) {
 	}
 }
 
-// provide a specific key for a service
+// provide a specific key for a service, eg:
+// path:/backends/snowflake, id:s1
+//
 // service must be stored like /backends/xxx_service/xxx_id
-func (p *service_pool) get_service_with_id(name ServiceType, id string) (interface{}, error) {
+func (p *service_pool) get_service_with_id(path string, id string) *grpc.ClientConn {
 	p.RLock()
 	defer p.RUnlock()
-	service := p.services[string(name)]
+	service := p.services[path]
 	if service == nil {
-		return nil, ERROR_SERVICE_NOT_AVAILABLE
+		return nil
 	}
 
 	if len(service.clients) == 0 {
-		return nil, ERROR_SERVICE_NOT_AVAILABLE
+		return nil
 	}
 
-	var conn *grpc.ClientConn
-	fullpath := string(name) + "/" + id
+	fullpath := string(path) + "/" + id
 	for k := range service.clients {
 		if service.clients[k].key == fullpath {
-			conn = service.clients[k].conn
-			break
+			return service.clients[k].conn
 		}
 	}
 
-	if conn == nil {
-		return nil, ERROR_SERVICE_NOT_AVAILABLE
-	}
-
-	// add wrappers here ...
-	switch name {
-	case SERVICE_SNOWFLAKE:
-		return proto.NewSnowflakeServiceClient(conn), nil
-	case SERVICE_GEOIP:
-		return proto.NewGeoIPServiceClient(conn), nil
-	case SERVICE_WORDFILTER:
-		return proto.NewWordFilterServiceClient(conn), nil
-	case SERVICE_BGSAVE:
-		return proto.NewBgSaveServiceClient(conn), nil
-	case SERVICE_AUTH:
-		return proto.NewAuthServiceClient(conn), nil
-	case SERVICE_CHAT:
-		return proto.NewChatServiceClient(conn), nil
-	case SERVICE_GAME:
-		return proto.NewGameServiceClient(conn), nil
-	}
-	return nil, ERROR_SERVICE_NOT_AVAILABLE
+	return nil
 }
 
-func (p *service_pool) get_service(name ServiceType) (interface{}, error) {
+func (p *service_pool) get_service(path string) *grpc.ClientConn {
 	p.RLock()
 	defer p.RUnlock()
-	service := p.services[string(name)]
+	service := p.services[path]
 	if service == nil {
-		return nil, ERROR_SERVICE_NOT_AVAILABLE
+		return nil
 	}
 
 	if len(service.clients) == 0 {
-		return nil, ERROR_SERVICE_NOT_AVAILABLE
+		return nil
 	}
 	idx := int(atomic.AddUint32(&service.idx, 1))
-
-	// add wrappers here ...
-	pa := idx % len(service.clients)
-	switch name {
-	case SERVICE_SNOWFLAKE:
-		return proto.NewSnowflakeServiceClient(service.clients[pa].conn), nil
-	case SERVICE_GEOIP:
-		return proto.NewGeoIPServiceClient(service.clients[pa].conn), nil
-	case SERVICE_WORDFILTER:
-		return proto.NewWordFilterServiceClient(service.clients[pa].conn), nil
-	case SERVICE_BGSAVE:
-		return proto.NewBgSaveServiceClient(service.clients[pa].conn), nil
-	case SERVICE_AUTH:
-		return proto.NewAuthServiceClient(service.clients[pa].conn), nil
-	case SERVICE_CHAT:
-		return proto.NewChatServiceClient(service.clients[pa].conn), nil
-	case SERVICE_GAME:
-		return proto.NewGameServiceClient(service.clients[pa].conn), nil
-
-	}
-	return nil, ERROR_SERVICE_NOT_AVAILABLE
-}
-
-func (p *service_pool) get_all_service(name ServiceType) (map[string]interface{}, error) {
-	p.RLock()
-	defer p.RUnlock()
-	service := p.services[string(name)]
-	if service == nil {
-		return nil, ERROR_SERVICE_NOT_AVAILABLE
-	}
-
-	if len(service.clients) == 0 {
-		return nil, ERROR_SERVICE_NOT_AVAILABLE
-	}
-
-	// all services
-	var conns map[string]interface{}
-	for _, v := range service.clients {
-		k := v.key
-		switch name {
-		case SERVICE_SNOWFLAKE:
-			conns[k] = proto.NewSnowflakeServiceClient(v.conn)
-		case SERVICE_GEOIP:
-			conns[k] = proto.NewGeoIPServiceClient(v.conn)
-		case SERVICE_WORDFILTER:
-			conns[k] = proto.NewWordFilterServiceClient(v.conn)
-		case SERVICE_BGSAVE:
-			conns[k] = proto.NewBgSaveServiceClient(v.conn)
-		case SERVICE_AUTH:
-			conns[k] = proto.NewAuthServiceClient(v.conn)
-		case SERVICE_CHAT:
-			conns[k] = proto.NewChatServiceClient(v.conn)
-		case SERVICE_GAME:
-			conns[k] = proto.NewGameServiceClient(v.conn)
-		}
-	}
-	return conns, nil
+	return service.clients[idx%len(service.clients)].conn
 }
 
 // choose a service randomly
-func GetAllService(name ServiceType) (map[string]interface{}, error) {
-	return _default_pool.get_all_service(name)
+func GetService(path string) *grpc.ClientConn {
+	return _default_pool.get_service(path)
 }
 
-// choose a service randomly
-func GetService(name ServiceType) (interface{}, error) {
-	return _default_pool.get_service(name)
-}
-
-// get a specific service instance with given service_name and id
-func GetServiceWithId(service_name ServiceType, id string) (interface{}, error) {
-	return _default_pool.get_service_with_id(service_name, id)
+// get a specific service instance with given path and id
+func GetServiceWithId(path string, id string) *grpc.ClientConn {
+	return _default_pool.get_service_with_id(path, id)
 }

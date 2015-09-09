@@ -2,12 +2,12 @@ package services
 
 import (
 	"testing"
-	"time"
 )
 
 func TestService(t *testing.T) {
-	if _, err := GetService(SERVICE_SNOWFLAKE); err != nil {
-		t.Log(err)
+	if GetService("/backends/snowflake") == nil {
+		t.Log("get service failed")
+	} else {
+		t.Log("get service succeed")
 	}
-	<-time.After(time.Hour)
 }
