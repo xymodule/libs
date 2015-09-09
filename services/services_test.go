@@ -10,4 +10,10 @@ func TestService(t *testing.T) {
 	} else {
 		t.Log("get service succeed")
 	}
+
+	if GetServiceWithId("/backends/snowflake", "5946f18904ab:elated_blackwell:50003") == nil {
+		t.Log("get service with id failed")
+	} else {
+		t.Log("get service with id succeed")
+	}
 }
