@@ -2,6 +2,7 @@ game
 snowflake
 chat
 geoip
+auth
 rank
 wordfilter
 bgsave
