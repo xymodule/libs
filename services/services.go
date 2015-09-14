@@ -33,7 +33,7 @@ type service struct {
 
 type service_pool struct {
 	services          map[string]*service
-	service_names     map[string]bool // store services.txt
+	service_names     map[string]bool // store names.txt
 	enable_name_check bool
 	client_pool       sync.Pool
 	sync.RWMutex
