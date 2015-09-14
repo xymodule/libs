@@ -16,6 +16,7 @@ import (
 const (
 	DEFAULT_ETCD         = "http://127.0.0.1:2379"
 	DEFAULT_SERVICE_PATH = "/backends"
+	SERVICE_ACCESS       = "/service_access"
 	DEFAULT_DIAL_TIMEOUT = 10 * time.Second
 	RETRY_DELAY          = 10 * time.Second
 )
@@ -34,6 +35,9 @@ type service_pool struct {
 	services    map[string]*service
 	client_pool sync.Pool
 	sync.RWMutex
+
+	name   string
+	access map[string]bool
 }
 
 var (
@@ -42,11 +46,19 @@ var (
 
 func init() {
 	_default_pool.init()
+	_default_pool.init_access()
 	_default_pool.connect_all(DEFAULT_SERVICE_PATH)
 	go _default_pool.watcher()
 }
 
 func (p *service_pool) init() {
+	if env := os.Getenv("SERVICE_NAME"); env == "" {
+		log.Error("SERVICE_NAME is not set.")
+		return
+	} else {
+		p.name = env
+	}
+
 	// etcd client
 	machines := []string{DEFAULT_ETCD}
 	if env := os.Getenv("ETCD_HOST"); env != "" {
@@ -57,6 +69,27 @@ func (p *service_pool) init() {
 	}
 
 	p.services = make(map[string]*service)
+}
+
+// access must be stored like /service_access/xxx_service yyy_service:1,zzz_service:1
+func (p *service_pool) init_access() {
+	client := p.client_pool.Get().(*etcd.Client)
+	defer func() {
+		p.client_pool.Put(client)
+	}()
+
+	resp, err := client.Get(SERVICE_ACCESS+"/"+p.name, false, false)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	p.access = make(map[string]bool)
+	for _, service := range resp.Node.Nodes {
+		if service.Value == "1" {
+			_, name := filepath.Split(service.Key)
+			p.access[DEFAULT_SERVICE_PATH+"/"+name] = true
+		}
+	}
 }
 
 // connect to all services
@@ -79,7 +112,6 @@ func (p *service_pool) connect_all(directory string) {
 		log.Error("not a directory")
 		return
 	}
-
 	for _, node := range resp.Node.Nodes {
 		if node.Dir { // service directory
 			for _, service := range node.Nodes {
@@ -109,10 +141,8 @@ func (p *service_pool) watcher() {
 					}
 					key, value := resp.Node.Key, resp.Node.Value
 					if value == "" {
-						log.Tracef("node delete: %v", key)
 						p.remove_service(key)
 					} else {
-						log.Tracef("node add: %v %v", key, value)
 						p.add_service(key, value)
 					}
 				} else {
@@ -134,6 +164,9 @@ func (p *service_pool) add_service(key, value string) {
 	p.Lock()
 	defer p.Unlock()
 	service_name := filepath.Dir(key)
+	if _, ok := p.access[service_name]; !ok {
+		return
+	}
 	if p.services[service_name] == nil {
 		p.services[service_name] = &service{}
 		log.Tracef("new service type: %v", service_name)
@@ -153,6 +186,9 @@ func (p *service_pool) remove_service(key string) {
 	p.Lock()
 	defer p.Unlock()
 	service_name := filepath.Dir(key)
+	if _, ok := p.access[service_name]; !ok {
+		return
+	}
 	service := p.services[service_name]
 	if service == nil {
 		log.Tracef("no such service %v", service_name)
@@ -177,15 +213,11 @@ func (p *service_pool) get_service_with_id(path string, id string) *grpc.ClientC
 	p.RLock()
 	defer p.RUnlock()
 	service := p.services[path]
-	if service == nil {
+	if service == nil || len(service.clients) == 0 {
 		return nil
 	}
 
-	if len(service.clients) == 0 {
-		return nil
-	}
-
-	fullpath := string(path) + "/" + id
+	fullpath := path + "/" + id
 	for k := range service.clients {
 		if service.clients[k].key == fullpath {
 			return service.clients[k].conn
