@@ -16,6 +16,7 @@ import (
 const (
 	DEFAULT_ETCD         = "http://127.0.0.1:2379"
 	DEFAULT_SERVICE_PATH = "/backends"
+	DEFAULT_NAME_FILE    = "/backends/names"
 	DEFAULT_DIAL_TIMEOUT = 10 * time.Second
 	RETRY_DELAY          = 10 * time.Second
 )
@@ -31,8 +32,10 @@ type service struct {
 }
 
 type service_pool struct {
-	services    map[string]*service
-	client_pool sync.Pool
+	services          map[string]*service
+	service_names     map[string]bool // store services.txt
+	enable_name_check bool
+	client_pool       sync.Pool
 	sync.RWMutex
 }
 
@@ -42,6 +45,7 @@ var (
 
 func init() {
 	_default_pool.init()
+	_default_pool.load_names()
 	_default_pool.connect_all(DEFAULT_SERVICE_PATH)
 	go _default_pool.watcher()
 }
@@ -57,6 +61,38 @@ func (p *service_pool) init() {
 	}
 
 	p.services = make(map[string]*service)
+}
+
+// get stored service name
+func (p *service_pool) load_names() {
+	p.service_names = make(map[string]bool)
+	client := p.client_pool.Get().(*etcd.Client)
+	defer func() {
+		p.client_pool.Put(client)
+	}()
+
+	// get the keys under directory
+	log.Info("reading names:", DEFAULT_NAME_FILE)
+	resp, err := client.Get(DEFAULT_NAME_FILE, false, false)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	// validation check
+	if resp.Node.Dir {
+		log.Error("names is not a file")
+		return
+	}
+
+	// split names
+	names := strings.Split(resp.Node.Value, "\n")
+	log.Info("all service names:", names)
+	for _, v := range names {
+		p.service_names[DEFAULT_SERVICE_PATH+"/"+strings.TrimSpace(v)] = true
+	}
+
+	p.enable_name_check = true
 }
 
 // connect to all services
@@ -85,8 +121,6 @@ func (p *service_pool) connect_all(directory string) {
 			for _, service := range node.Nodes {
 				p.add_service(service.Key, service.Value)
 			}
-		} else {
-			log.Warning("malformed service directory:", node.Key)
 		}
 	}
 	log.Info("services add complete")
@@ -134,6 +168,12 @@ func (p *service_pool) add_service(key, value string) {
 	p.Lock()
 	defer p.Unlock()
 	service_name := filepath.Dir(key)
+	// name check
+	if p.enable_name_check && !p.service_names[service_name] {
+		log.Warningf("service not in names: %v, ignored", service_name)
+		return
+	}
+
 	if p.services[service_name] == nil {
 		p.services[service_name] = &service{}
 		log.Tracef("new service type: %v", service_name)
