@@ -180,7 +180,7 @@ func (p *service_pool) add_service(key, value string) {
 	}
 	service := p.services[service_name]
 
-	if conn, err := grpc.Dial(value, grpc.WithTimeout(DEFAULT_DIAL_TIMEOUT)); err == nil {
+	if conn, err := grpc.Dial(value, grpc.WithTimeout(DEFAULT_DIAL_TIMEOUT), grpc.WithInsecure()); err == nil {
 		service.clients = append(service.clients, client{key, conn})
 		log.Tracef("service added: %v -- %v", key, value)
 	} else {
