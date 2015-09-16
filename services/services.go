@@ -155,6 +155,7 @@ func (p *service_pool) watcher() {
 			}
 		}()
 
+		log.Info("Watching:", DEFAULT_SERVICE_PATH)
 		_, err := client.Watch(DEFAULT_SERVICE_PATH, 0, true, ch, nil)
 		if err != nil {
 			log.Critical(err)
