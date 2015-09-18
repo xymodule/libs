@@ -202,7 +202,6 @@ func (p *service_pool) remove_service(key string) {
 
 	for k := range service.clients {
 		if service.clients[k].key == key { // deletion
-			service.clients[k].conn.Close()
 			service.clients = append(service.clients[:k], service.clients[k+1:]...)
 			log.Tracef("service removed %v", key)
 			return
