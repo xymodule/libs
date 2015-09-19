@@ -12,7 +12,7 @@ import (
 
 const (
 	ENV_STATSD          = "STATSD_HOST"
-	DEFAULT_STATSD_HOST = "127.0.0.1:8125"
+	DEFAULT_STATSD_HOST = "172.17.42.1:8125"
 	COLLECT_DELAY       = 1 * time.Minute
 	SERVICE             = "[STATSD_PPROF]"
 )

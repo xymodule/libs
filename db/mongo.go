@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	DEFAULT_MONGODB_URL = "mongodb://127.0.0.1/mydb"
+	DEFAULT_MONGODB_URL = "mongodb://172.17.42.1/mydb"
 	ENV_MONGODB_URL     = "MONGODB_URL"
 	DEFAULT_DBOPS_VALVE = 128
 	DEFAULT_MGO_TIMEOUT = 300

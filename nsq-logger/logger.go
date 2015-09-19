@@ -13,7 +13,7 @@ import (
 
 const (
 	ENV_NSQD         = "NSQD_HOST"
-	DEFAULT_PUB_ADDR = "http://127.0.0.1:4151/pub?topic=LOG"
+	DEFAULT_PUB_ADDR = "http://172.17.42.1:4151/pub?topic=LOG"
 	MIME             = "application/octet-stream"
 )
 

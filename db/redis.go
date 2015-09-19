@@ -6,12 +6,12 @@ import (
 
 	"gopkg.in/vmihailenco/msgpack.v2"
 
-	log "github.com/gonet2/libs/nsq-logger"
 	"github.com/fzzy/radix/redis"
+	log "github.com/gonet2/libs/nsq-logger"
 )
 
 const (
-	DEFAULT_REDIS_HOST = "127.0.0.1:6379"
+	DEFAULT_REDIS_HOST = "172.17.42.1:6379"
 	ENV_REDIS_HOST     = "REDIS_HOST"
 )
 

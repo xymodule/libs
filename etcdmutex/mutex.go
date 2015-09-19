@@ -1,8 +1,8 @@
 package etcdmutex
 
 import (
-	log "github.com/gonet2/libs/nsq-logger"
 	"github.com/coreos/go-etcd/etcd"
+	log "github.com/gonet2/libs/nsq-logger"
 	"os"
 	"strings"
 	"sync"
@@ -12,7 +12,7 @@ import (
 const (
 	LOCK_PATH    = "/locks/"
 	TTL          = 60 // max num of secs to live for a lock
-	DEFAULT_ETCD = "http://127.0.0.1:2379"
+	DEFAULT_ETCD = "http://172.17.42.1:2379"
 	RETRY_MAX    = 10                    // depends on concurrency
 	RETRY_WAIT   = 10 * time.Millisecond // depends on how long can a lock hold
 	VALUE        = "L"

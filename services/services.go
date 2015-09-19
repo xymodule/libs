@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	DEFAULT_ETCD         = "http://127.0.0.1:2379"
+	DEFAULT_ETCD         = "http://172.17.42.1:2379"
 	DEFAULT_SERVICE_PATH = "/backends"
 	DEFAULT_NAME_FILE    = "/backends/names"
 	DEFAULT_DIAL_TIMEOUT = 10 * time.Second
