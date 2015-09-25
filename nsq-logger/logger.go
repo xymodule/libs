@@ -42,6 +42,7 @@ type LogFormat struct {
 var (
 	_pub_addr string
 	_prefix   string
+	_junk     []byte
 )
 
 func init() {
@@ -50,6 +51,7 @@ func init() {
 	if env := os.Getenv(ENV_NSQD); env != "" {
 		_pub_addr = env + "/pub?topic=LOG"
 	}
+	_junk = make([]byte, 1024)
 }
 
 // publish to nsqd (localhost nsqd is suggested!)
@@ -80,7 +82,14 @@ func publish(msg LogFormat) {
 		log.Fatal(err)
 		return
 	}
-	defer resp.Body.Close()
+
+	// read & discard
+	for {
+		if _, err := resp.Body.Read(_junk); err != nil {
+			break
+		}
+	}
+	resp.Body.Close()
 }
 
 // set prefix
