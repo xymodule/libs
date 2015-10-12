@@ -5,6 +5,7 @@ import (
 )
 
 func TestService(t *testing.T) {
+	DefaultPool.Init()
 	if GetService("/backends/snowflake") == nil {
 		t.Log("get service failed")
 	} else {
