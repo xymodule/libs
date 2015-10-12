@@ -46,8 +46,7 @@ var (
 func init() {
 	_default_pool.init()
 	_default_pool.load_names()
-	_default_pool.connect_all(DEFAULT_SERVICE_PATH)
-	go _default_pool.watcher()
+	go _default_pool.connect_all(DEFAULT_SERVICE_PATH)
 }
 
 func (p *service_pool) init() {
@@ -124,6 +123,8 @@ func (p *service_pool) connect_all(directory string) {
 		}
 	}
 	log.Info("services add complete")
+
+	go _default_pool.watcher()
 }
 
 // watcher for data change in etcd directory
