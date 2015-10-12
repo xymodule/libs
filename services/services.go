@@ -40,28 +40,30 @@ type service_pool struct {
 }
 
 var (
-	DefaultPool service_pool
-	once        sync.Once
+	_default_pool service_pool
+	once          sync.Once
 )
 
-func (p *service_pool) Init() {
-	once.Do(func() {
-		// etcd client
-		machines := []string{DEFAULT_ETCD}
-		if env := os.Getenv("ETCD_HOST"); env != "" {
-			machines = strings.Split(env, ";")
-		}
-		p.client_pool.New = func() interface{} {
-			return etcd.NewClient(machines)
-		}
+func Init() {
+	once.Do(_default_pool.init)
+}
 
-		p.services = make(map[string]*service)
+func (p *service_pool) init() {
+	// etcd client
+	machines := []string{DEFAULT_ETCD}
+	if env := os.Getenv("ETCD_HOST"); env != "" {
+		machines = strings.Split(env, ";")
+	}
+	p.client_pool.New = func() interface{} {
+		return etcd.NewClient(machines)
+	}
 
-		// load available names
-		p.load_names()
-		// connect all services
-		p.connect_all(DEFAULT_SERVICE_PATH)
-	})
+	p.services = make(map[string]*service)
+
+	// load available names
+	p.load_names()
+	// connect all services
+	p.connect_all(DEFAULT_SERVICE_PATH)
 }
 
 // get stored service name
@@ -255,10 +257,10 @@ func (p *service_pool) get_service(path string) *grpc.ClientConn {
 
 // choose a service randomly
 func GetService(path string) *grpc.ClientConn {
-	return DefaultPool.get_service(path)
+	return _default_pool.get_service(path)
 }
 
 // get a specific service instance with given path and id
 func GetServiceWithId(path string, id string) *grpc.ClientConn {
-	return DefaultPool.get_service_with_id(path, id)
+	return _default_pool.get_service_with_id(path, id)
 }
