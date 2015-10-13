@@ -44,6 +44,7 @@ var (
 	once          sync.Once
 )
 
+// Init() ***MUST*** be called before using
 func Init() {
 	once.Do(_default_pool.init)
 }
