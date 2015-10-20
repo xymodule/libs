@@ -1,11 +1,9 @@
 package statsdprof
 
 import (
-	"fmt"
 	log "github.com/gonet2/libs/nsq-logger"
 	"github.com/peterbourgon/g2s"
 	"os"
-	"path"
 	"runtime"
 	"time"
 )
@@ -51,14 +49,8 @@ func collect() {
 	if hostname, err := os.Hostname(); err == nil {
 		tag += hostname
 	} else {
-		log.Warning(SERVICE, err)
-	}
-	// executable name
-	if exe_name, err := os.Readlink("/proc/self/exe"); err == nil {
-		tag += "." + path.Base(exe_name)
-	} else {
-		tag += fmt.Sprintf(".%v", os.Getpid())
-		log.Warning(SERVICE, err)
+		log.Critical(SERVICE, err)
+		return
 	}
 
 	memstats := &runtime.MemStats{}
