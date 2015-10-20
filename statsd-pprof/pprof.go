@@ -45,14 +45,15 @@ func pprof_task() {
 
 // collect & publish to statsd
 func collect() {
-	tag := ""
-	if hostname, err := os.Hostname(); err == nil {
-		tag += hostname
-	} else {
+	var tag string
+	hostname, err := os.Hostname()
+	if err != nil {
 		log.Critical(SERVICE, err)
 		return
 	}
+	tag = hostname
 
+	// collect
 	memstats := &runtime.MemStats{}
 	runtime.ReadMemStats(memstats)
 
