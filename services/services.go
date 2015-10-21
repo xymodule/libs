@@ -60,7 +60,6 @@ func (p *service_pool) init() {
 		machines = strings.Split(env, ";")
 	}
 
-	println(machines)
 	// init etcd client
 	cfg := etcdclient.Config{
 		Endpoints: machines,
