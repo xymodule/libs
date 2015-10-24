@@ -49,11 +49,11 @@ var (
 )
 
 // Init() ***MUST*** be called before using
-func Init() {
-	once.Do(_default_pool.init)
+func Init(names ...string) {
+	once.Do(func() { _default_pool.init(names...) })
 }
 
-func (p *service_pool) init() {
+func (p *service_pool) init(names ...string) {
 	// etcd client
 	machines := []string{DEFAULT_ETCD}
 	if env := os.Getenv("ETCD_HOST"); env != "" {
@@ -75,35 +75,43 @@ func (p *service_pool) init() {
 	// init
 	p.services = make(map[string]*service)
 	p.known_names = make(map[string]bool)
-	p.load_names()
+
+	// names init
+	if len(names) == 0 { // names not provided
+		names = p.load_names() // try read from names.txt
+	}
+	if len(names) > 0 {
+		p.enable_name_check = true
+	}
+
+	log.Info("all service names:", names)
+	for _, v := range names {
+		p.known_names[DEFAULT_SERVICE_PATH+"/"+strings.TrimSpace(v)] = true
+	}
+
+	// start connection
 	p.connect_all(DEFAULT_SERVICE_PATH)
 }
 
 // get stored service name
-func (p *service_pool) load_names() {
+func (p *service_pool) load_names() []string {
 	kAPI := etcdclient.NewKeysAPI(p.client)
 	// get the keys under directory
 	log.Info("reading names:", DEFAULT_NAME_FILE)
 	resp, err := kAPI.Get(context.Background(), DEFAULT_NAME_FILE, nil)
 	if err != nil {
 		log.Error(err)
-		return
+		return nil
 	}
 
 	// validation check
 	if resp.Node.Dir {
 		log.Error("names is not a file")
-		return
+		return nil
 	}
 
 	// split names
-	names := strings.Split(resp.Node.Value, "\n")
-	log.Info("all service names:", names)
-	for _, v := range names {
-		p.known_names[DEFAULT_SERVICE_PATH+"/"+strings.TrimSpace(v)] = true
-	}
-
-	p.enable_name_check = true
+	return strings.Split(resp.Node.Value, "\n")
 }
 
 // connect to all services
@@ -166,7 +174,6 @@ func (p *service_pool) add_service(key, value string) {
 	service_name := filepath.Dir(key)
 	// name check
 	if p.enable_name_check && !p.known_names[service_name] {
-		log.Warningf("service not in names: %v, ignored", service_name)
 		return
 	}
 
