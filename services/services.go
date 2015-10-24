@@ -19,7 +19,6 @@ const (
 	DEFAULT_SERVICE_PATH = "/backends"
 	DEFAULT_NAME_FILE    = "/backends/names"
 	DEFAULT_DIAL_TIMEOUT = 10 * time.Second
-	RETRY_DELAY          = 10 * time.Second
 )
 
 // a single connection
