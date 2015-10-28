@@ -20,16 +20,15 @@ var (
 
 // a data change
 type Change struct {
-	Collection string      // represents document name
-	SubDoc     string      // represents subdocument "a.b.c.1.d"
-	Old        interface{} // value before change
-	New        interface{} // value after change
+	Collection string // collection
+	Field      string // field "a.b.c.1.d"
+	Doc        []byte // msgpack serialized data
 }
 
 // a redo record represents complete transaction
 type RedoRecord struct {
-	Api     string   // the api name
-	Uid     int32    // userid
+	API     string   // the api name
+	UID     int32    // userid
 	TS      uint64   // timestamp should get from snowflake
 	Changes []Change // changes
 }
@@ -43,18 +42,23 @@ func init() {
 	// get nsqd publish address
 	_pub_addr = DEFAULT_PUB_ADDR
 	if env := os.Getenv(ENV_NSQD); env != "" {
-		_pub_addr = env + "/pub?topic=LOG"
+		_pub_addr = env + "/pub?topic=REDOLOG"
 	}
 	_junk = make([]byte, 1024)
 }
 
 // add a change with o(old value) and n(new value)
-func (r *RedoRecord) AddChange(collection, subdoc string, o interface{}, n interface{}) {
-	r.Changes = append(r.Changes, Change{Collection: collection, SubDoc: subdoc, Old: o, New: n})
+func (r *RedoRecord) AddChange(collection, field string, doc interface{}) {
+	doc_bin, err := msgpack.Marshal(doc)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	r.Changes = append(r.Changes, Change{Collection: collection, Field: field, Doc: doc_bin})
 }
 
 func NewRedoRecord(uid int32, api string, ts uint64) *RedoRecord {
-	return &RedoRecord{Uid: uid, Api: api, TS: ts}
+	return &RedoRecord{UID: uid, API: api, TS: ts}
 }
 
 // publish to nsqd (localhost nsqd is suggested!)
