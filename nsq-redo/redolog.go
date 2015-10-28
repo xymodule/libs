@@ -14,6 +14,10 @@ const (
 	MIME             = "application/octet-stream"
 )
 
+var (
+	_junk []byte
+)
+
 // a data change
 type Change struct {
 	Collection string      // represents document name
@@ -24,10 +28,10 @@ type Change struct {
 
 // a redo record represents complete transaction
 type RedoRecord struct {
-	Api     string // the api name
-	Uid     int32  // userid
-	Changes []Change
-	TS      uint64 // timestamp should get from snowflake
+	Api     string   // the api name
+	Uid     int32    // userid
+	TS      uint64   // timestamp should get from snowflake
+	Changes []Change // changes
 }
 
 var (
@@ -41,6 +45,7 @@ func init() {
 	if env := os.Getenv(ENV_NSQD); env != "" {
 		_pub_addr = env + "/pub?topic=LOG"
 	}
+	_junk = make([]byte, 1024)
 }
 
 // add a change with o(old value) and n(new value)
@@ -48,23 +53,8 @@ func (r *RedoRecord) AddChange(collection, subdoc string, o interface{}, n inter
 	r.Changes = append(r.Changes, Change{Collection: collection, SubDoc: subdoc, Old: o, New: n})
 }
 
-// set timestamp
-func (r *RedoRecord) SetTS(ts uint64) {
-	r.TS = ts
-}
-
-// set api
-func (r *RedoRecord) SetApi(name string) {
-	r.Api = name
-}
-
-// set user id
-func (r *RedoRecord) SetUid(uid int32) {
-	r.Uid = uid
-}
-
-func NewRedoRecord() *RedoRecord {
-	return new(RedoRecord)
+func NewRedoRecord(uid int32, api string, ts uint64) *RedoRecord {
+	return &RedoRecord{Uid: uid, Api: api, TS: ts}
 }
 
 // publish to nsqd (localhost nsqd is suggested!)
@@ -82,5 +72,12 @@ func Publish(r *RedoRecord) {
 		log.Critical(err)
 		return
 	}
-	defer resp.Body.Close()
+
+	// read & discard
+	for {
+		if _, err := resp.Body.Read(_junk); err != nil {
+			break
+		}
+	}
+	resp.Body.Close()
 }
