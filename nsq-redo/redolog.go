@@ -3,6 +3,7 @@ package nsqredo
 import (
 	"bytes"
 	log "github.com/gonet2/libs/nsq-logger"
+	"gopkg.in/mgo.v2/bson"
 	"gopkg.in/vmihailenco/msgpack.v2"
 	"net/http"
 	"os"
@@ -49,7 +50,7 @@ func init() {
 
 // add a change with o(old value) and n(new value)
 func (r *RedoRecord) AddChange(collection, field string, doc interface{}) {
-	doc_bin, err := msgpack.Marshal(doc)
+	doc_bin, err := bson.Marshal(doc)
 	if err != nil {
 		log.Error(err)
 		return
