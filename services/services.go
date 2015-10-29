@@ -158,10 +158,8 @@ func (p *service_pool) watcher() {
 
 		switch resp.Action {
 		case "set", "create", "update", "compareAndSwap":
-			log.Tracef("node add: %v %v", resp.Node.Key, resp.Node.Value)
 			p.add_service(resp.Node.Key, resp.Node.Value)
 		case "delete":
-			log.Tracef("node delete: %v", resp.PrevNode.Key)
 			p.remove_service(resp.PrevNode.Key)
 		}
 	}
