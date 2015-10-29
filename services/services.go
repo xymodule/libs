@@ -178,7 +178,6 @@ func (p *service_pool) add_service(key, value string) {
 	// try new service kind init
 	if p.services[service_name] == nil {
 		p.services[service_name] = &service{}
-		log.Tracef("new service type: %v", service_name)
 	}
 
 	// create service connection
