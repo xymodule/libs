@@ -155,13 +155,14 @@ func (p *service_pool) watcher() {
 		if resp.Node.Dir {
 			continue
 		}
-		key, value := resp.Node.Key, resp.Node.Value
-		if value == "" {
-			log.Tracef("node delete: %v", key)
-			p.remove_service(key)
-		} else {
-			log.Tracef("node add: %v %v", key, value)
-			p.add_service(key, value)
+
+		switch resp.Node.Action {
+		case "create":
+			log.Tracef("node create: %v %v", resp.Node.Key, resp.Node.Value)
+			p.add_service(resp.Node.Key, resp.Node.Value)
+		case "delete":
+			log.Tracef("node delete: %v", resp.PrevNode.Key)
+			p.remove_service(resp.PrevNode.Key)
 		}
 	}
 }
