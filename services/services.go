@@ -156,9 +156,9 @@ func (p *service_pool) watcher() {
 			continue
 		}
 
-		switch resp.Node.Action {
-		case "create":
-			log.Tracef("node create: %v %v", resp.Node.Key, resp.Node.Value)
+		switch resp.Action {
+		case "set", "create", "update", "compareAndSwap":
+			log.Tracef("node add: %v %v", resp.Node.Key, resp.Node.Value)
 			p.add_service(resp.Node.Key, resp.Node.Value)
 		case "delete":
 			log.Tracef("node delete: %v", resp.PrevNode.Key)
@@ -171,8 +171,8 @@ func (p *service_pool) watcher() {
 func (p *service_pool) add_service(key, value string) {
 	p.Lock()
 	defer p.Unlock()
-	service_name := filepath.Dir(key)
 	// name check
+	service_name := filepath.Dir(key)
 	if p.enable_name_check && !p.known_names[service_name] {
 		return
 	}
@@ -197,9 +197,13 @@ func (p *service_pool) add_service(key, value string) {
 func (p *service_pool) remove_service(key string) {
 	p.Lock()
 	defer p.Unlock()
+	// name check
+	service_name := filepath.Dir(key)
+	if p.enable_name_check && !p.known_names[service_name] {
+		return
+	}
 
 	// check service kind
-	service_name := filepath.Dir(key)
 	service := p.services[service_name]
 	if service == nil {
 		log.Tracef("no such service %v", service_name)
