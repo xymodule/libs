@@ -23,7 +23,7 @@ var (
 type Change struct {
 	Collection string // collection
 	Field      string // field "a.b.c.1.d"
-	Doc        []byte // msgpack serialized data
+	Doc        []byte // bson serialized data
 }
 
 // a redo record represents complete transaction
