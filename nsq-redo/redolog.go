@@ -4,7 +4,6 @@ import (
 	"bytes"
 	log "github.com/gonet2/libs/nsq-logger"
 	"gopkg.in/mgo.v2/bson"
-	"gopkg.in/vmihailenco/msgpack.v2"
 	"net/http"
 	"os"
 )
@@ -22,8 +21,8 @@ var (
 // a data change
 type Change struct {
 	Collection string // collection
-	Field      string // field "a.b.c.1.d"
-	Doc        []byte // bson serialized data
+	Field      string // field "a.b.c.d"
+	Doc        interface{}
 }
 
 // a redo record represents complete transaction
@@ -50,12 +49,7 @@ func init() {
 
 // add a change with o(old value) and n(new value)
 func (r *RedoRecord) AddChange(collection, field string, doc interface{}) {
-	doc_bin, err := bson.Marshal(doc)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-	r.Changes = append(r.Changes, Change{Collection: collection, Field: field, Doc: doc_bin})
+	r.Changes = append(r.Changes, Change{Collection: collection, Field: field, Doc: doc})
 }
 
 func NewRedoRecord(uid int32, api string, ts uint64) *RedoRecord {
@@ -65,7 +59,7 @@ func NewRedoRecord(uid int32, api string, ts uint64) *RedoRecord {
 // publish to nsqd (localhost nsqd is suggested!)
 func Publish(r *RedoRecord) {
 	// pack message
-	pack, err := msgpack.Marshal(r)
+	pack, err := bson.Marshal(r)
 	if err != nil {
 		log.Critical(err)
 		return
