@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -42,7 +43,6 @@ type LogFormat struct {
 var (
 	_pub_addr string
 	_prefix   string
-	_junk     []byte
 )
 
 func init() {
@@ -51,7 +51,6 @@ func init() {
 	if env := os.Getenv(ENV_NSQD); env != "" {
 		_pub_addr = env + "/pub?topic=LOG"
 	}
-	_junk = make([]byte, 1024)
 }
 
 // publish to nsqd (localhost nsqd is suggested!)
@@ -72,24 +71,22 @@ func publish(msg LogFormat) {
 	// pack message
 	pack, err := json.Marshal(msg)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err, msg)
 		return
 	}
 
 	// post to nsqd
 	resp, err := http.Post(_pub_addr, MIME, bytes.NewReader(pack))
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err, msg)
 		return
 	}
+	defer resp.Body.Close()
 
-	// read & discard
-	for {
-		if _, err := resp.Body.Read(_junk); err != nil {
-			break
-		}
+	// read close
+	if _, err := ioutil.ReadAll(resp.Body); err != nil {
+		log.Println(err, msg)
 	}
-	resp.Body.Close()
 }
 
 // set prefix
