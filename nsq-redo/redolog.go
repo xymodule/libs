@@ -4,6 +4,7 @@ import (
 	"bytes"
 	log "github.com/gonet2/libs/nsq-logger"
 	"gopkg.in/mgo.v2/bson"
+	"io/ioutil"
 	"net/http"
 	"os"
 )
@@ -12,10 +13,6 @@ const (
 	ENV_NSQD         = "NSQD_HOST"
 	DEFAULT_PUB_ADDR = "http://172.17.42.1:4151/pub?topic=REDOLOG"
 	MIME             = "application/octet-stream"
-)
-
-var (
-	_junk []byte
 )
 
 // a data change
@@ -44,7 +41,6 @@ func init() {
 	if env := os.Getenv(ENV_NSQD); env != "" {
 		_pub_addr = env + "/pub?topic=REDOLOG"
 	}
-	_junk = make([]byte, 1024)
 }
 
 // add a change with o(old value) and n(new value)
@@ -71,12 +67,10 @@ func Publish(r *RedoRecord) {
 		log.Critical(err)
 		return
 	}
+	defer resp.Body.Close()
 
-	// read & discard
-	for {
-		if _, err := resp.Body.Read(_junk); err != nil {
-			break
-		}
+	// read close
+	if _, err := ioutil.ReadAll(resp.Body); err != nil {
+		log.Critical(err)
 	}
-	resp.Body.Close()
 }
