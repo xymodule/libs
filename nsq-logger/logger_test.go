@@ -2,6 +2,7 @@ package nsqlogger
 
 import (
 	"testing"
+	"time"
 )
 
 func TestLogger(t *testing.T) {
@@ -14,6 +15,7 @@ func TestLogger(t *testing.T) {
 	Warning("warning")
 	Error("error")
 	Critical("critical")
+	<-time.After(time.Minute)
 }
 
 func BenchmarkLogger(b *testing.B) {

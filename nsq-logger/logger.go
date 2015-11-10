@@ -43,6 +43,7 @@ type LogFormat struct {
 var (
 	_pub_addr string
 	_prefix   string
+	_ch       chan []byte
 )
 
 func init() {
@@ -50,6 +51,28 @@ func init() {
 	_pub_addr = DEFAULT_PUB_ADDR
 	if env := os.Getenv(ENV_NSQD); env != "" {
 		_pub_addr = env + "/pub?topic=LOG"
+	}
+	_ch = make(chan []byte, 4096)
+	go publish_task()
+}
+
+func publish_task() {
+	for {
+		// post to nsqd
+		bts := <-_ch
+		resp, err := http.Post(_pub_addr, MIME, bytes.NewReader(bts))
+		if err != nil {
+			log.Println(err, string(bts))
+			continue
+		}
+
+		// read response
+		if _, err := ioutil.ReadAll(resp.Body); err != nil {
+			log.Println(err, string(bts))
+		}
+
+		// close
+		resp.Body.Close()
 	}
 }
 
@@ -62,30 +85,17 @@ func publish(msg LogFormat) {
 	msg.Prefix = _prefix
 
 	// Determine caller func
-	pc, _, lineno, ok := runtime.Caller(2)
-	if ok {
+	if pc, _, lineno, ok := runtime.Caller(2); ok {
 		msg.Caller = runtime.FuncForPC(pc).Name()
 		msg.LineNo = lineno
 	}
 
 	// pack message
-	pack, err := json.Marshal(msg)
-	if err != nil {
+	if bts, err := json.Marshal(msg); err == nil {
+		_ch <- bts
+	} else {
 		log.Println(err, msg)
 		return
-	}
-
-	// post to nsqd
-	resp, err := http.Post(_pub_addr, MIME, bytes.NewReader(pack))
-	if err != nil {
-		log.Println(err, msg)
-		return
-	}
-	defer resp.Body.Close()
-
-	// read close
-	if _, err := ioutil.ReadAll(resp.Body); err != nil {
-		log.Println(err, msg)
 	}
 }
 
