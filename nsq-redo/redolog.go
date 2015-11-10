@@ -2,9 +2,9 @@ package nsqredo
 
 import (
 	"bytes"
-	log "github.com/gonet2/libs/nsq-logger"
 	"gopkg.in/mgo.v2/bson"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 )
@@ -33,6 +33,7 @@ type RedoRecord struct {
 var (
 	_pub_addr string
 	_prefix   string
+	_ch       chan []byte
 )
 
 func init() {
@@ -41,6 +42,8 @@ func init() {
 	if env := os.Getenv(ENV_NSQD); env != "" {
 		_pub_addr = env + "/pub?topic=REDOLOG"
 	}
+	_ch = make(chan []byte, 4096)
+	go publish_task()
 }
 
 // add a change with o(old value) and n(new value)
@@ -52,25 +55,33 @@ func NewRedoRecord(uid int32, api string, ts uint64) *RedoRecord {
 	return &RedoRecord{UID: uid, API: api, TS: ts}
 }
 
+func publish_task() {
+	for {
+		// post to nsqd
+		bts := <-_ch
+		resp, err := http.Post(_pub_addr, MIME, bytes.NewReader(bts))
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
+		// read response
+		if _, err := ioutil.ReadAll(resp.Body); err != nil {
+			log.Println(err)
+		}
+
+		// close
+		resp.Body.Close()
+	}
+}
+
 // publish to nsqd (localhost nsqd is suggested!)
 func Publish(r *RedoRecord) {
 	// pack message
-	pack, err := bson.Marshal(r)
-	if err != nil {
-		log.Critical(err)
+	if bts, err := bson.Marshal(r); err == nil {
+		_ch <- bts
+	} else {
+		log.Println(err, r)
 		return
-	}
-
-	// post to nsqd
-	resp, err := http.Post(_pub_addr, MIME, bytes.NewReader(pack))
-	if err != nil {
-		log.Critical(err)
-		return
-	}
-	defer resp.Body.Close()
-
-	// read close
-	if _, err := ioutil.ReadAll(resp.Body); err != nil {
-		log.Critical(err)
 	}
 }
