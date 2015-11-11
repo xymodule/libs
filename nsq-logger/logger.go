@@ -3,7 +3,6 @@ package nsqlogger
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -11,6 +10,8 @@ import (
 	"os"
 	"runtime"
 	"time"
+
+	"github.com/pquerna/ffjson/ffjson"
 )
 
 const (
@@ -110,7 +111,7 @@ func publish(msg LogFormat) {
 	}
 
 	// pack message
-	if bts, err := json.Marshal(msg); err == nil {
+	if bts, err := ffjson.Marshal(msg); err == nil {
 		_ch <- bts
 	} else {
 		log.Println(err, msg)
