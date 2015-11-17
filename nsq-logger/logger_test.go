@@ -7,6 +7,7 @@ import (
 
 func TestLogger(t *testing.T) {
 	SetPrefix("[TEST]")
+	SetLogLevel(TRACE)
 	Finest("finest")
 	Fine("fine")
 	Debug("debug")

@@ -45,6 +45,7 @@ type LogFormat struct {
 var (
 	_pub_addr string
 	_prefix   string
+	_level    byte
 	_ch       chan []byte
 )
 
@@ -124,83 +125,120 @@ func SetPrefix(prefix string) {
 	_prefix = prefix
 }
 
+// set loglevel
+func SetLogLevel(level byte) {
+	_level = level
+}
+
 // wrappers for diffent loglevels
 func Finest(v ...interface{}) {
-	msg := LogFormat{Level: FINEST, Msg: fmt.Sprint(v...)}
-	publish(msg)
+	if _level <= FINEST {
+		msg := LogFormat{Level: FINEST, Msg: fmt.Sprint(v...)}
+		publish(msg)
+	}
 }
 
 func Finestf(format string, v ...interface{}) {
-	msg := LogFormat{Level: FINEST, Msg: fmt.Sprintf(format, v...)}
-	publish(msg)
+	if _level <= FINEST {
+		msg := LogFormat{Level: FINEST, Msg: fmt.Sprintf(format, v...)}
+		publish(msg)
+	}
 }
 
 func Fine(v ...interface{}) {
-	msg := LogFormat{Level: FINE, Msg: fmt.Sprint(v...)}
-	publish(msg)
+	if _level <= FINE {
+		msg := LogFormat{Level: FINE, Msg: fmt.Sprint(v...)}
+		publish(msg)
+	}
 }
 
 func Finef(format string, v ...interface{}) {
-	msg := LogFormat{Level: FINE, Msg: fmt.Sprintf(format, v...)}
-	publish(msg)
+	if _level <= FINE {
+		msg := LogFormat{Level: FINE, Msg: fmt.Sprintf(format, v...)}
+		publish(msg)
+	}
 }
 
 func Debug(v ...interface{}) {
-	msg := LogFormat{Level: DEBUG, Msg: fmt.Sprint(v...)}
-	publish(msg)
+	if _level <= DEBUG {
+		msg := LogFormat{Level: DEBUG, Msg: fmt.Sprint(v...)}
+		publish(msg)
+	}
 }
 
 func Debugf(format string, v ...interface{}) {
-	msg := LogFormat{Level: DEBUG, Msg: fmt.Sprintf(format, v...)}
-	publish(msg)
+	if _level <= DEBUG {
+		msg := LogFormat{Level: DEBUG, Msg: fmt.Sprintf(format, v...)}
+		publish(msg)
+	}
 }
 
 func Trace(v ...interface{}) {
-	msg := LogFormat{Level: TRACE, Msg: fmt.Sprint(v...)}
-	publish(msg)
+	if _level <= TRACE {
+		msg := LogFormat{Level: TRACE, Msg: fmt.Sprint(v...)}
+		publish(msg)
+	}
 }
 
 func Tracef(format string, v ...interface{}) {
-	msg := LogFormat{Level: TRACE, Msg: fmt.Sprintf(format, v...)}
-	publish(msg)
+	if _level <= TRACE {
+		msg := LogFormat{Level: TRACE, Msg: fmt.Sprintf(format, v...)}
+		publish(msg)
+	}
 }
 
 func Info(v ...interface{}) {
-	msg := LogFormat{Level: INFO, Msg: fmt.Sprint(v...)}
-	publish(msg)
+	if _level <= INFO {
+		msg := LogFormat{Level: INFO, Msg: fmt.Sprint(v...)}
+		publish(msg)
+	}
 }
 
 func Infof(format string, v ...interface{}) {
-	msg := LogFormat{Level: INFO, Msg: fmt.Sprintf(format, v...)}
-	publish(msg)
+	if _level <= INFO {
+		msg := LogFormat{Level: INFO, Msg: fmt.Sprintf(format, v...)}
+		publish(msg)
+	}
 }
 
 func Warning(v ...interface{}) {
-	msg := LogFormat{Level: WARNING, Msg: fmt.Sprint(v...)}
-	publish(msg)
+	if _level <= WARNING {
+		msg := LogFormat{Level: WARNING, Msg: fmt.Sprint(v...)}
+		publish(msg)
+	}
 }
 
 func Warningf(format string, v ...interface{}) {
-	msg := LogFormat{Level: WARNING, Msg: fmt.Sprintf(format, v...)}
-	publish(msg)
+	if _level <= WARNING {
+		msg := LogFormat{Level: WARNING, Msg: fmt.Sprintf(format, v...)}
+		publish(msg)
+	}
 }
 
 func Error(v ...interface{}) {
-	msg := LogFormat{Level: ERROR, Msg: fmt.Sprint(v...)}
-	publish(msg)
+	if _level <= ERROR {
+		msg := LogFormat{Level: ERROR, Msg: fmt.Sprint(v...)}
+		publish(msg)
+	}
 }
 
 func Errorf(format string, v ...interface{}) {
-	msg := LogFormat{Level: ERROR, Msg: fmt.Sprintf(format, v...)}
-	publish(msg)
+	if _level <= ERROR {
+		msg := LogFormat{Level: ERROR, Msg: fmt.Sprintf(format, v...)}
+		publish(msg)
+	}
 }
 
 func Critical(v ...interface{}) {
-	msg := LogFormat{Level: CRITICAL, Msg: fmt.Sprint(v...)}
-	publish(msg)
+	if _level <= CRITICAL {
+		msg := LogFormat{Level: CRITICAL, Msg: fmt.Sprint(v...)}
+		publish(msg)
+	}
 }
 
 func Criticalf(format string, v ...interface{}) {
-	msg := LogFormat{Level: CRITICAL, Msg: fmt.Sprintf(format, v...)}
-	publish(msg)
+	if _level <= CRITICAL {
+		msg := LogFormat{Level: CRITICAL, Msg: fmt.Sprintf(format, v...)}
+		publish(msg)
+	}
 }
