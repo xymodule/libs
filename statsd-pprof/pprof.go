@@ -26,11 +26,12 @@ func init() {
 	}
 
 	s, err := g2s.Dial("udp", addr)
-	if err != nil {
-		println(err)
-		os.Exit(-1)
+	if err == nil {
+		_statter = s
+	} else {
+		_statter = g2s.Noop()
+		log.Error(err)
 	}
-	_statter = s
 
 	go pprof_task()
 }
