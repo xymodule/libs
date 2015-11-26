@@ -1,6 +1,7 @@
 package statsdprof
 
 import (
+	"fmt"
 	log "github.com/gonet2/libs/nsq-logger"
 	"github.com/peterbourgon/g2s"
 	"os"
@@ -58,32 +59,32 @@ func collect() {
 	memstats := &runtime.MemStats{}
 	runtime.ReadMemStats(memstats)
 
-	_statter.Counter(1.0, tag+".NumGoroutine", int(runtime.NumGoroutine()))
-	_statter.Counter(1.0, tag+".NumCgoCall", int(runtime.NumCgoCall()))
+	_statter.Gauge(1.0, tag+".NumGoroutine", fmt.Sprint(runtime.NumGoroutine()))
+	_statter.Gauge(1.0, tag+".NumCgoCall", fmt.Sprint(runtime.NumCgoCall()))
 	if memstats.NumGC > 0 {
-		_statter.Counter(1.0, tag+".NumGC", int(memstats.NumGC))
 		_statter.Timing(1.0, tag+".PauseTotal", time.Duration(memstats.PauseTotalNs))
 		_statter.Timing(1.0, tag+".LastPause", time.Duration(memstats.PauseNs[(memstats.NumGC+255)%256]))
-		_statter.Counter(1.0, tag+".Alloc", int(memstats.Alloc))
-		_statter.Counter(1.0, tag+".TotalAlloc", int(memstats.TotalAlloc))
-		_statter.Counter(1.0, tag+".Sys", int(memstats.Sys))
-		_statter.Counter(1.0, tag+".Lookups", int(memstats.Lookups))
-		_statter.Counter(1.0, tag+".Mallocs", int(memstats.Mallocs))
-		_statter.Counter(1.0, tag+".Frees", int(memstats.Frees))
-		_statter.Counter(1.0, tag+".HeapAlloc", int(memstats.HeapAlloc))
-		_statter.Counter(1.0, tag+".HeapSys", int(memstats.HeapSys))
-		_statter.Counter(1.0, tag+".HeapIdle", int(memstats.HeapIdle))
-		_statter.Counter(1.0, tag+".HeapInuse", int(memstats.HeapInuse))
-		_statter.Counter(1.0, tag+".HeapReleased", int(memstats.HeapReleased))
-		_statter.Counter(1.0, tag+".HeapObjects", int(memstats.HeapObjects))
-		_statter.Counter(1.0, tag+".StackInuse", int(memstats.StackInuse))
-		_statter.Counter(1.0, tag+".StackSys", int(memstats.StackSys))
-		_statter.Counter(1.0, tag+".MSpanInuse", int(memstats.MSpanInuse))
-		_statter.Counter(1.0, tag+".MSpanSys", int(memstats.MSpanSys))
-		_statter.Counter(1.0, tag+".MCacheInuse", int(memstats.MCacheInuse))
-		_statter.Counter(1.0, tag+".MCacheSys", int(memstats.MCacheSys))
-		_statter.Counter(1.0, tag+".BuckHashSys", int(memstats.BuckHashSys))
-		_statter.Counter(1.0, tag+".GCSys", int(memstats.GCSys))
-		_statter.Counter(1.0, tag+".OtherSys", int(memstats.OtherSys))
+		_statter.Gauge(1.0, tag+".NumGC", fmt.Sprint(memstats.NumGC))
+		_statter.Gauge(1.0, tag+".Alloc", fmt.Sprint(memstats.Alloc))
+		_statter.Gauge(1.0, tag+".TotalAlloc", fmt.Sprint(memstats.TotalAlloc))
+		_statter.Gauge(1.0, tag+".Sys", fmt.Sprint(memstats.Sys))
+		_statter.Gauge(1.0, tag+".Lookups", fmt.Sprint(memstats.Lookups))
+		_statter.Gauge(1.0, tag+".Mallocs", fmt.Sprint(memstats.Mallocs))
+		_statter.Gauge(1.0, tag+".Frees", fmt.Sprint(memstats.Frees))
+		_statter.Gauge(1.0, tag+".HeapAlloc", fmt.Sprint(memstats.HeapAlloc))
+		_statter.Gauge(1.0, tag+".HeapSys", fmt.Sprint(memstats.HeapSys))
+		_statter.Gauge(1.0, tag+".HeapIdle", fmt.Sprint(memstats.HeapIdle))
+		_statter.Gauge(1.0, tag+".HeapInuse", fmt.Sprint(memstats.HeapInuse))
+		_statter.Gauge(1.0, tag+".HeapReleased", fmt.Sprint(memstats.HeapReleased))
+		_statter.Gauge(1.0, tag+".HeapObjects", fmt.Sprint(memstats.HeapObjects))
+		_statter.Gauge(1.0, tag+".StackInuse", fmt.Sprint(memstats.StackInuse))
+		_statter.Gauge(1.0, tag+".StackSys", fmt.Sprint(memstats.StackSys))
+		_statter.Gauge(1.0, tag+".MSpanInuse", fmt.Sprint(memstats.MSpanInuse))
+		_statter.Gauge(1.0, tag+".MSpanSys", fmt.Sprint(memstats.MSpanSys))
+		_statter.Gauge(1.0, tag+".MCacheInuse", fmt.Sprint(memstats.MCacheInuse))
+		_statter.Gauge(1.0, tag+".MCacheSys", fmt.Sprint(memstats.MCacheSys))
+		_statter.Gauge(1.0, tag+".BuckHashSys", fmt.Sprint(memstats.BuckHashSys))
+		_statter.Gauge(1.0, tag+".GCSys", fmt.Sprint(memstats.GCSys))
+		_statter.Gauge(1.0, tag+".OtherSys", fmt.Sprint(memstats.OtherSys))
 	}
 }
