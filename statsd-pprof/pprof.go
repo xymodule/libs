@@ -53,7 +53,7 @@ func collect() {
 		log.Critical(SERVICE, err)
 		return
 	}
-	tag = hostname
+	tag = hostname + ".pprof"
 
 	// collect
 	memstats := &runtime.MemStats{}
