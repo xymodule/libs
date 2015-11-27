@@ -1,2 +1,2 @@
 # libs
-It's include the public common libs in gonet2
+public common libs in gonet2
