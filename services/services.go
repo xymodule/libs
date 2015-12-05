@@ -247,28 +247,34 @@ func (p *service_pool) get_service_with_id(path string, id string) *grpc.ClientC
 
 // get a service in round-robin style
 // especially useful for load-balance with state-less services
-func (p *service_pool) get_service(path string) *grpc.ClientConn {
+func (p *service_pool) get_service(path string) (conn *grpc.ClientConn, key string) {
 	p.RLock()
 	defer p.RUnlock()
 	// check existence
 	service := p.services[path]
 	if service == nil {
-		return nil
+		return nil, ""
 	}
 
 	if len(service.clients) == 0 {
-		return nil
+		return nil, ""
 	}
 
 	// get a service in round-robind style,
-	idx := int(atomic.AddUint32(&service.idx, 1))
-	return service.clients[idx%len(service.clients)].conn
+	idx := int(atomic.AddUint32(&service.idx, 1)) % len(service.clients)
+	return service.clients[idx].conn, service.clients[idx].key
 }
 
 /////////////////////////////////////////////////////////////////
 // Wrappers
 func GetService(path string) *grpc.ClientConn {
-	return _default_pool.get_service(path)
+	conn, _ := _default_pool.get_service(path)
+	return conn
+}
+
+func GetService2(path string) (*grpc.ClientConn, string) {
+	conn, key := _default_pool.get_service(path)
+	return conn, key
 }
 
 func GetServiceWithId(path string, id string) *grpc.ClientConn {
