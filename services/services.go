@@ -39,6 +39,7 @@ type service_pool struct {
 	known_names       map[string]bool // store names.txt
 	enable_name_check bool
 	client            etcdclient.Client
+	callbacks         []chan string // service add callback notify
 	sync.RWMutex
 }
 
@@ -185,6 +186,12 @@ func (p *service_pool) add_service(key, value string) {
 	if conn, err := grpc.Dial(value, grpc.WithTimeout(DEFAULT_DIAL_TIMEOUT), grpc.WithInsecure()); err == nil {
 		service.clients = append(service.clients, client{key, conn})
 		log.Tracef("service added: %v -- %v", key, value)
+		for k := range p.callbacks {
+			select {
+			case p.callbacks[k] <- key:
+			default:
+			}
+		}
 	} else {
 		log.Errorf("did not connect: %v -- %v err: %v", key, value, err)
 	}
@@ -265,6 +272,12 @@ func (p *service_pool) get_service(path string) (conn *grpc.ClientConn, key stri
 	return service.clients[idx].conn, service.clients[idx].key
 }
 
+func (p *service_pool) register_callback(callback chan string) {
+	p.Lock()
+	defer p.Unlock()
+	_default_pool.callbacks = append(_default_pool.callbacks, callback)
+}
+
 /////////////////////////////////////////////////////////////////
 // Wrappers
 func GetService(path string) *grpc.ClientConn {
@@ -279,4 +292,8 @@ func GetService2(path string) (*grpc.ClientConn, string) {
 
 func GetServiceWithId(path string, id string) *grpc.ClientConn {
 	return _default_pool.get_service_with_id(path, id)
+}
+
+func RegisterCallback(callback chan string) {
+	_default_pool.register_callback(callback)
 }
