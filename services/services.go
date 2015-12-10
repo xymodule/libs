@@ -275,7 +275,7 @@ func (p *service_pool) get_service(path string) (conn *grpc.ClientConn, key stri
 func (p *service_pool) register_callback(callback chan string) {
 	p.Lock()
 	defer p.Unlock()
-	_default_pool.callbacks = append(_default_pool.callbacks, callback)
+	p.callbacks = append(p.callbacks, callback)
 	for _, s := range p.services {
 		for k := range s.clients {
 			callback <- s.clients[k].key
