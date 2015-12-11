@@ -37,7 +37,7 @@ type service_pool struct {
 	known_names       map[string]bool // store names.txt
 	enable_name_check bool
 	client            etcdclient.Client
-	callbacks         []chan string // service add callback notify
+	callbacks         map[string][]chan string // service add callback notify
 	sync.RWMutex
 }
 
@@ -184,9 +184,9 @@ func (p *service_pool) add_service(key, value string) {
 	if conn, err := grpc.Dial(value, grpc.WithBlock(), grpc.WithInsecure()); err == nil {
 		service.clients = append(service.clients, client{key, conn})
 		log.Tracef("service added: %v -- %v", key, value)
-		for k := range p.callbacks {
+		for k := range p.callbacks[service_name] {
 			select {
-			case p.callbacks[k] <- key:
+			case p.callbacks[service_name][k] <- key:
 			default:
 			}
 		}
@@ -270,15 +270,20 @@ func (p *service_pool) get_service(path string) (conn *grpc.ClientConn, key stri
 	return service.clients[idx].conn, service.clients[idx].key
 }
 
-func (p *service_pool) register_callback(callback chan string) {
+func (p *service_pool) register_callback(path string, callback chan string) {
 	p.Lock()
 	defer p.Unlock()
-	p.callbacks = append(p.callbacks, callback)
-	for _, s := range p.services {
+	if p.callbacks == nil {
+		p.callbacks = make(map[string][]chan string)
+	}
+
+	p.callbacks[path] = append(p.callbacks[path], callback)
+	if s, ok := p.services[path]; ok {
 		for k := range s.clients {
 			callback <- s.clients[k].key
 		}
 	}
+	log.Info("register callback on", path)
 }
 
 /////////////////////////////////////////////////////////////////
@@ -297,6 +302,6 @@ func GetServiceWithId(path string, id string) *grpc.ClientConn {
 	return _default_pool.get_service_with_id(path, id)
 }
 
-func RegisterCallback(callback chan string) {
-	_default_pool.register_callback(callback)
+func RegisterCallback(path string, callback chan string) {
+	_default_pool.register_callback(path, callback)
 }
