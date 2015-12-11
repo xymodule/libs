@@ -6,7 +6,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	etcdclient "github.com/coreos/etcd/client"
 	log "github.com/gonet2/libs/nsq-logger"
@@ -18,7 +17,6 @@ const (
 	DEFAULT_ETCD         = "http://172.17.42.1:2379"
 	DEFAULT_SERVICE_PATH = "/backends"
 	DEFAULT_NAME_FILE    = "/backends/names"
-	DEFAULT_DIAL_TIMEOUT = 10 * time.Second
 )
 
 // a single connection
@@ -183,7 +181,7 @@ func (p *service_pool) add_service(key, value string) {
 
 	// create service connection
 	service := p.services[service_name]
-	if conn, err := grpc.Dial(value, grpc.WithTimeout(DEFAULT_DIAL_TIMEOUT), grpc.WithInsecure()); err == nil {
+	if conn, err := grpc.Dial(value, grpc.WithBlock(), grpc.WithInsecure()); err == nil {
 		service.clients = append(service.clients, client{key, conn})
 		log.Tracef("service added: %v -- %v", key, value)
 		for k := range p.callbacks {
