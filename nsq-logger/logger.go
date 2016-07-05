@@ -47,6 +47,7 @@ var (
 	_prefix   string
 	_level    byte
 	_ch       chan []byte
+	_flush    chan chan struct{}
 )
 
 func init() {
@@ -56,43 +57,53 @@ func init() {
 		_pub_addr = env + "/mpub?topic=LOG&binary=true"
 	}
 	_ch = make(chan []byte, 4096)
+	_flush = make(chan chan struct{}, 1)
 	go publish_task()
 }
 
 // aggregate & mpub
 func publish_task() {
 	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
 	size := make([]byte, 4)
+
+	flush := func() {
+		n := len(_ch)
+		if n == 0 {
+			return
+		}
+		// [ 4-byte num messages ]
+		// [ 4-byte message #1 size ][ N-byte binary data ]
+		//    ... (repeated <num_messages> times)
+		buf := new(bytes.Buffer)
+		binary.BigEndian.PutUint32(size, uint32(n))
+		buf.Write(size)
+		for i := 0; i < n; i++ {
+			bts := <-_ch
+			binary.BigEndian.PutUint32(size, uint32(len(bts)))
+			buf.Write(size)
+			buf.Write(bts)
+		}
+
+		// http part
+		resp, err := http.Post(_pub_addr, MIME, buf)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		if _, err := ioutil.ReadAll(resp.Body); err != nil {
+			log.Println(err)
+		}
+		resp.Body.Close()
+	}
+
 	for {
 		select {
 		case <-ticker.C:
-			n := len(_ch)
-			if n == 0 {
-				continue
-			}
-			// [ 4-byte num messages ]
-			// [ 4-byte message #1 size ][ N-byte binary data ]
-			//    ... (repeated <num_messages> times)
-			buf := new(bytes.Buffer)
-			binary.BigEndian.PutUint32(size, uint32(n))
-			buf.Write(size)
-			for i := 0; i < n; i++ {
-				bts := <-_ch
-				binary.BigEndian.PutUint32(size, uint32(len(bts)))
-				buf.Write(size)
-				buf.Write(bts)
-			}
-
-			// http part
-			resp, err := http.Post(_pub_addr, MIME, buf)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			if _, err := ioutil.ReadAll(resp.Body); err != nil {
-				log.Println(err)
-			}
-			resp.Body.Close()
+			flush()
+		case w := <-_flush:
+			flush()
+			w <- struct{}{}
 		}
 	}
 }
@@ -118,6 +129,13 @@ func publish(msg LogFormat) {
 		log.Println(err, msg)
 		return
 	}
+}
+
+// flush remaining logs
+func Flush() {
+	w := make(chan struct{}, 1)
+	_flush <- w
+	<-w
 }
 
 // set prefix

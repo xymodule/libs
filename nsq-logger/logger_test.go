@@ -1,9 +1,6 @@
 package nsqlogger
 
-import (
-	"testing"
-	"time"
-)
+import "testing"
 
 func TestLogger(t *testing.T) {
 	SetPrefix("[TEST]")
@@ -16,7 +13,7 @@ func TestLogger(t *testing.T) {
 	Warning("warning")
 	Error("error")
 	Critical("critical")
-	<-time.After(time.Minute)
+	Flush()
 }
 
 func BenchmarkLogger(b *testing.B) {
