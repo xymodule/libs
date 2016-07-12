@@ -7,8 +7,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	log "github.com/Sirupsen/logrus"
 	etcdclient "github.com/coreos/etcd/client"
-	log "github.com/gonet2/libs/nsq-logger"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -65,7 +65,7 @@ func (p *service_pool) init(names ...string) {
 	}
 	c, err := etcdclient.New(cfg)
 	if err != nil {
-		log.Critical(err)
+		log.Panic(err)
 		os.Exit(-1)
 	}
 	p.client = c
@@ -183,7 +183,7 @@ func (p *service_pool) add_service(key, value string) {
 	service := p.services[service_name]
 	if conn, err := grpc.Dial(value, grpc.WithBlock(), grpc.WithInsecure()); err == nil {
 		service.clients = append(service.clients, client{key, conn})
-		log.Tracef("service added: %v -- %v", key, value)
+		log.Debugf("service added: %v -- %v", key, value)
 		for k := range p.callbacks[service_name] {
 			select {
 			case p.callbacks[service_name][k] <- key:
@@ -208,7 +208,7 @@ func (p *service_pool) remove_service(key string) {
 	// check service kind
 	service := p.services[service_name]
 	if service == nil {
-		log.Tracef("no such service %v", service_name)
+		log.Debugf("no such service %v", service_name)
 		return
 	}
 
@@ -216,7 +216,7 @@ func (p *service_pool) remove_service(key string) {
 	for k := range service.clients {
 		if service.clients[k].key == key { // deletion
 			service.clients = append(service.clients[:k], service.clients[k+1:]...)
-			log.Tracef("service removed %v", key)
+			log.Debugf("service removed %v", key)
 			return
 		}
 	}
