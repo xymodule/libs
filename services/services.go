@@ -4,9 +4,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	etcdclient "github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
@@ -17,6 +19,8 @@ const (
 	DEFAULT_ETCD         = "http://172.17.42.1:2379"
 	DEFAULT_SERVICE_PATH = "/backends"
 	DEFAULT_NAME_FILE    = "/backends/names"
+	DEFAULT_TIMEOUT      = 5
+	DEFAULT_RETRIES      = 6 // failed connect retry times for every ten seconds
 )
 
 // a single connection
@@ -41,14 +45,70 @@ type service_pool struct {
 	sync.RWMutex
 }
 
+// retries
+type retry_manager struct {
+	retries map[string]int // key ==> retry times
+	sync.RWMutex
+}
+
 var (
-	_default_pool service_pool
-	once          sync.Once
+	_default_pool   service_pool
+	_retry_manager  retry_manager
+	connect_timeout int
+	once            sync.Once
 )
 
 // Init() ***MUST*** be called before using
 func Init(names ...string) {
-	once.Do(func() { _default_pool.init(names...) })
+	once.Do(func() {
+		_default_pool.init(names...)
+		_retry_manager.init()
+		//
+		timerStart()
+	})
+}
+
+func (p *retry_manager) init() {
+	p.retries = make(map[string]int)
+}
+
+func (p *retry_manager) add_retry(key string) {
+	p.Lock()
+	defer p.Unlock()
+	p.retries[key] = DEFAULT_RETRIES
+	log.Println("Add connect retry ", key)
+}
+
+func (p *retry_manager) del_retry(key string) {
+	p.Lock()
+	defer p.Unlock()
+	_, ok := p.retries[key]
+	if ok {
+		delete(p.retries, key)
+		log.Println("Del connect retry ", key)
+	}
+}
+
+func (p *retry_manager) cycle_check() {
+	p.Lock()
+	defer p.Unlock()
+
+	for key, value := range p.retries {
+		if value > 0 {
+			log.Println("Trying connecting ", key, "......")
+			if del := retryConn(key); del == true {
+				p.retries[key] = 0
+				log.Println("Connect on", key, "successfully!")
+			} else {
+				p.retries[key]--
+			}
+		}
+
+		if p.retries[key] == 0 {
+			delete(p.retries, key)
+			log.Println("Delete connect retry ", key)
+		}
+	}
 }
 
 func (p *service_pool) init(names ...string) {
@@ -56,6 +116,16 @@ func (p *service_pool) init(names ...string) {
 	machines := []string{DEFAULT_ETCD}
 	if env := os.Getenv("ETCD_HOST"); env != "" {
 		machines = strings.Split(env, ";")
+	}
+
+	connect_timeout = DEFAULT_TIMEOUT
+	if env := os.Getenv("CONN_TIME"); env != "" {
+		i, err := strconv.Atoi(env)
+		if err == nil {
+			connect_timeout = i
+		} else {
+			log.Println("CONN_TIME Error", err)
+		}
 	}
 
 	// init etcd client
@@ -155,23 +225,29 @@ func (p *service_pool) watcher() {
 			continue
 		}
 
+		log.Println("Watcher: ", resp.Node.Key, "-->", resp.Node.Value, ":", resp.Action)
 		switch resp.Action {
 		case "set", "create", "update", "compareAndSwap":
-			p.add_service(resp.Node.Key, resp.Node.Value)
+			success := p.add_service(resp.Node.Key, resp.Node.Value)
+			if !success {
+				addRetry(resp.Node.Key)
+			}
 		case "delete":
-			p.remove_service(resp.PrevNode.Key)
+			key := resp.PrevNode.Key
+			p.remove_service(key)
+			delRetry(key)
 		}
 	}
 }
 
 // add a service
-func (p *service_pool) add_service(key, value string) {
+func (p *service_pool) add_service(key, value string) bool {
 	p.Lock()
 	defer p.Unlock()
 	// name check
 	service_name := filepath.Dir(key)
 	if p.enable_name_check && !p.known_names[service_name] {
-		return
+		return true
 	}
 
 	// try new service kind init
@@ -181,18 +257,21 @@ func (p *service_pool) add_service(key, value string) {
 
 	// create service connection
 	service := p.services[service_name]
-	if conn, err := grpc.Dial(value, grpc.WithBlock(), grpc.WithInsecure()); err == nil {
+	if conn, err := grpc.Dial(value, grpc.WithBlock(), grpc.WithInsecure(), grpc.WithTimeout(time.Duration(connect_timeout)*time.Second)); err == nil {
 		service.clients = append(service.clients, client{key, conn})
-		log.Println("service added:", key, "-->", value)
 		for k := range p.callbacks[service_name] {
 			select {
 			case p.callbacks[service_name][k] <- key:
 			default:
 			}
 		}
+		log.Println("service added:", key, "-->", value)
+		return true
 	} else {
 		log.Println("did not connect:", key, "-->", value, "error:", err)
 	}
+
+	return false
 }
 
 // remove a service
@@ -285,6 +364,51 @@ func (p *service_pool) register_callback(path string, callback chan string) {
 		}
 	}
 	log.Println("register callback on:", path)
+}
+
+func (p *service_pool) retry_conn(key string) (del bool) {
+	kAPI := etcdclient.NewKeysAPI(p.client)
+	resp, err := kAPI.Get(context.Background(), key, nil)
+	if err != nil {
+		del = true
+		log.Println(err)
+		return
+	}
+
+	if resp.Node.Dir {
+		del = true
+		log.Println(key, "is not a node")
+		return
+	}
+
+	del = p.add_service(key, resp.Node.Value)
+	return
+}
+
+/////////////////////////////////////////////////////////////////
+func addRetry(key string) {
+	_retry_manager.add_retry(key)
+}
+
+func delRetry(key string) {
+	_retry_manager.del_retry(key)
+}
+
+func retryConn(key string) bool {
+	return _default_pool.retry_conn(key)
+}
+
+func timerStart() {
+	go func() {
+		timer := time.NewTicker(10 * time.Second)
+		defer timer.Stop()
+		for {
+			select {
+			case <-timer.C:
+				_retry_manager.cycle_check()
+			}
+		}
+	}()
 }
 
 /////////////////////////////////////////////////////////////////
