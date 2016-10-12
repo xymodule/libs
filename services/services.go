@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	etcdclient "github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
@@ -181,7 +182,7 @@ func (p *service_pool) add_service(key, value string) {
 
 	// create service connection
 	service := p.services[service_name]
-	if conn, err := grpc.Dial(value, grpc.WithBlock(), grpc.WithInsecure()); err == nil {
+	if conn, err := grpc.Dial(value, grpc.WithBlock(), grpc.WithInsecure(), grpc.WithTimeout(10*time.Second)); err == nil {
 		service.clients = append(service.clients, client{key, conn})
 		log.Println("service added:", key, "-->", value)
 		for k := range p.callbacks[service_name] {
