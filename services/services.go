@@ -20,7 +20,7 @@ const (
 	DEFAULT_SERVICE_PATH = "/backends"
 	DEFAULT_NAME_FILE    = "/backends/names"
 	DEFAULT_TIMEOUT      = 5
-	DEFAULT_RETRIES      = 6 // failed connect retry times for every ten seconds
+	DEFAULT_RETRIES      = 6 // failed connection retry every ten seconds for one minute
 )
 
 // a single connection
@@ -225,7 +225,7 @@ func (p *service_pool) watcher() {
 			continue
 		}
 
-		log.Println("Watcher: ", resp.Node.Key, "-->", resp.Node.Value, ":", resp.Action)
+		//log.Println("Watcher: ", resp.Node.Key, "-->", resp.Node.Value, ":", resp.Action)
 		switch resp.Action {
 		case "set", "create", "update", "compareAndSwap":
 			success := p.add_service(resp.Node.Key, resp.Node.Value)
