@@ -1,7 +1,6 @@
 package services
 
 import (
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -10,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
 	etcdclient "github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -76,7 +76,7 @@ func (p *retry_manager) add_retry(key string) {
 	p.Lock()
 	defer p.Unlock()
 	p.retries[key] = DEFAULT_RETRIES
-	log.Println("Add connect retry ", key)
+	log.Debugf("Add connect retry:%v", key)
 }
 
 func (p *retry_manager) del_retry(key string) {
@@ -85,7 +85,7 @@ func (p *retry_manager) del_retry(key string) {
 	_, ok := p.retries[key]
 	if ok {
 		delete(p.retries, key)
-		log.Println("Del connect retry ", key)
+		log.Debugf("Del connect retry:%v", key)
 	}
 }
 
@@ -95,10 +95,10 @@ func (p *retry_manager) cycle_check() {
 
 	for key, value := range p.retries {
 		if value > 0 {
-			log.Println("Trying connecting ", key, "......")
+			log.Debugf("Trying connecting:%v ......", key)
 			if del := retryConn(key); del == true {
 				p.retries[key] = 0
-				log.Println("Connect on", key, "successfully!")
+				log.Infof("Connect on %v successfully !", key)
 			} else {
 				p.retries[key]--
 			}
@@ -106,7 +106,7 @@ func (p *retry_manager) cycle_check() {
 
 		if p.retries[key] == 0 {
 			delete(p.retries, key)
-			log.Println("Delete connect retry ", key)
+			log.Debugf("Delete connect retry:%v", key)
 		}
 	}
 }
@@ -124,7 +124,7 @@ func (p *service_pool) init(names ...string) {
 		if err == nil {
 			connect_timeout = i
 		} else {
-			log.Println("CONN_TIME Error", err)
+			log.Errorf("CONN_TIME Error:%v", err)
 		}
 	}
 
@@ -152,7 +152,7 @@ func (p *service_pool) init(names ...string) {
 		p.enable_name_check = true
 	}
 
-	log.Println("all service names:", names)
+	log.Infof("all service names:%v", names)
 	for _, v := range names {
 		p.known_names[DEFAULT_SERVICE_PATH+"/"+strings.TrimSpace(v)] = true
 	}
@@ -165,16 +165,16 @@ func (p *service_pool) init(names ...string) {
 func (p *service_pool) load_names() []string {
 	kAPI := etcdclient.NewKeysAPI(p.client)
 	// get the keys under directory
-	log.Println("reading names:", DEFAULT_NAME_FILE)
+	log.Debugf("reading names:%v", DEFAULT_NAME_FILE)
 	resp, err := kAPI.Get(context.Background(), DEFAULT_NAME_FILE, nil)
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 		return nil
 	}
 
 	// validation check
 	if resp.Node.Dir {
-		log.Println("names is not a file")
+		log.Error("names is not a file")
 		return nil
 	}
 
@@ -186,16 +186,16 @@ func (p *service_pool) load_names() []string {
 func (p *service_pool) connect_all(directory string) {
 	kAPI := etcdclient.NewKeysAPI(p.client)
 	// get the keys under directory
-	log.Println("connecting services under:", directory)
+	log.Infof("connecting services under:%v", directory)
 	resp, err := kAPI.Get(context.Background(), directory, &etcdclient.GetOptions{Recursive: true})
 	if err != nil {
-		log.Println(err)
+		log.Error(err)
 		return
 	}
 
 	// validation check
 	if !resp.Node.Dir {
-		log.Println("not a directory")
+		log.Error("not a directory")
 		return
 	}
 
@@ -206,7 +206,7 @@ func (p *service_pool) connect_all(directory string) {
 			}
 		}
 	}
-	log.Println("services add complete")
+	log.Info("services add complete")
 
 	go p.watcher()
 }
@@ -218,14 +218,14 @@ func (p *service_pool) watcher() {
 	for {
 		resp, err := w.Next(context.Background())
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			continue
 		}
 		if resp.Node.Dir {
 			continue
 		}
 
-		//log.Println("Watcher: ", resp.Node.Key, "-->", resp.Node.Value, ":", resp.Action)
+		//log.Debug("Watcher: ", resp.Node.Key, "-->", resp.Node.Value, ":", resp.Action)
 		switch resp.Action {
 		case "set", "create", "update", "compareAndSwap":
 			success := p.add_service(resp.Node.Key, resp.Node.Value)
@@ -265,10 +265,10 @@ func (p *service_pool) add_service(key, value string) bool {
 			default:
 			}
 		}
-		log.Println("service added:", key, "-->", value)
+		log.Infof("service added (%v, %v)", key, value)
 		return true
 	} else {
-		log.Println("did not connect:", key, "-->", value, "error:", err)
+		log.Errorf("did not connect (%v, %v), Error: %v", key, value, err)
 	}
 
 	return false
@@ -287,7 +287,7 @@ func (p *service_pool) remove_service(key string) {
 	// check service kind
 	service := p.services[service_name]
 	if service == nil {
-		log.Println("no such service:", service_name)
+		log.Debugf("no such service: %v", service_name)
 		return
 	}
 
@@ -296,7 +296,7 @@ func (p *service_pool) remove_service(key string) {
 		if service.clients[k].key == key { // deletion
 			service.clients[k].conn.Close()
 			service.clients = append(service.clients[:k], service.clients[k+1:]...)
-			log.Println("service removed:", key)
+			log.Debugf("service removed: %v", key)
 			return
 		}
 	}
@@ -363,7 +363,7 @@ func (p *service_pool) register_callback(path string, callback chan string) {
 			callback <- s.clients[k].key
 		}
 	}
-	log.Println("register callback on:", path)
+	log.Infof("register callback on: %v", path)
 }
 
 func (p *service_pool) retry_conn(key string) (del bool) {
@@ -371,13 +371,13 @@ func (p *service_pool) retry_conn(key string) (del bool) {
 	resp, err := kAPI.Get(context.Background(), key, nil)
 	if err != nil {
 		del = true
-		log.Println(err)
+		log.Error(err)
 		return
 	}
 
 	if resp.Node.Dir {
 		del = true
-		log.Println(key, "is not a node")
+		log.Error(key, "is not a node")
 		return
 	}
 
