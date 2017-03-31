@@ -16,11 +16,8 @@ import (
 )
 
 const (
-	DEFAULT_ETCD         = "http://172.17.42.1:2379"
-	DEFAULT_SERVICE_PATH = "/backends"
-	DEFAULT_NAME_FILE    = "/backends/names"
-	DEFAULT_TIMEOUT      = 5
-	DEFAULT_RETRIES      = 6 // failed connection retry every ten seconds for one minute
+	DEFAULT_TIMEOUT = 5
+	DEFAULT_RETRIES = 6 // failed connection retries (for every ten seconds)
 )
 
 // a single connection
@@ -37,12 +34,13 @@ type service struct {
 
 // all services
 type service_pool struct {
-	services          map[string]*service
-	known_names       map[string]bool // store names.txt
-	enable_name_check bool
-	client            etcdclient.Client
-	callbacks         map[string][]chan string // service add callback notify
-	sync.RWMutex
+	root           string
+	services       map[string]*service
+	known_names    map[string]bool // store names.txt
+	names_provided bool
+	client         etcdclient.Client
+	callbacks      map[string][]chan string // service add callback notify
+	mu             sync.RWMutex
 }
 
 // retries
@@ -52,16 +50,15 @@ type retry_manager struct {
 }
 
 var (
-	_default_pool   service_pool
-	_retry_manager  retry_manager
-	connect_timeout int
-	once            sync.Once
+	_default_pool  service_pool
+	_retry_manager retry_manager
+	once           sync.Once
 )
 
 // Init() ***MUST*** be called before using
-func Init(names ...string) {
+func Init(root string, hosts, names []string) {
 	once.Do(func() {
-		_default_pool.init(names...)
+		_default_pool.init(root, hosts, names)
 		_retry_manager.init()
 		//
 		timerStart()
@@ -73,15 +70,15 @@ func (p *retry_manager) init() {
 }
 
 func (p *retry_manager) add_retry(key string) {
-	p.Lock()
-	defer p.Unlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	p.retries[key] = DEFAULT_RETRIES
 	log.Debugf("Add connect retry:%v", key)
 }
 
 func (p *retry_manager) del_retry(key string) {
-	p.Lock()
-	defer p.Unlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	_, ok := p.retries[key]
 	if ok {
 		delete(p.retries, key)
@@ -90,8 +87,8 @@ func (p *retry_manager) del_retry(key string) {
 }
 
 func (p *retry_manager) cycle_check() {
-	p.Lock()
-	defer p.Unlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
 	for key, value := range p.retries {
 		if value > 0 {
@@ -111,26 +108,10 @@ func (p *retry_manager) cycle_check() {
 	}
 }
 
-func (p *service_pool) init(names ...string) {
-	// etcd client
-	machines := []string{DEFAULT_ETCD}
-	if env := os.Getenv("ETCD_HOST"); env != "" {
-		machines = strings.Split(env, ";")
-	}
-
-	connect_timeout = DEFAULT_TIMEOUT
-	if env := os.Getenv("CONN_TIME"); env != "" {
-		i, err := strconv.Atoi(env)
-		if err == nil {
-			connect_timeout = i
-		} else {
-			log.Errorf("CONN_TIME Error:%v", err)
-		}
-	}
-
+func (p *service_pool) init(root string, hosts, names []string) {
 	// init etcd client
 	cfg := etcdclient.Config{
-		Endpoints: machines,
+		Endpoints: hosts,
 		Transport: etcdclient.DefaultTransport,
 	}
 	c, err := etcdclient.New(cfg)
@@ -139,34 +120,31 @@ func (p *service_pool) init(names ...string) {
 		os.Exit(-1)
 	}
 	p.client = c
+	p.root = root
 
 	// init
 	p.services = make(map[string]*service)
 	p.known_names = make(map[string]bool)
 
-	// names init
-	if len(names) == 0 { // names not provided
-		names = p.load_names() // try read from names.txt
-	}
 	if len(names) > 0 {
-		p.enable_name_check = true
+		p.names_provided = true
 	}
 
 	log.Infof("all service names:%v", names)
 	for _, v := range names {
-		p.known_names[DEFAULT_SERVICE_PATH+"/"+strings.TrimSpace(v)] = true
+		p.known_names[p.root+"/"+strings.TrimSpace(v)] = true
 	}
 
 	// start connection
-	p.connect_all(DEFAULT_SERVICE_PATH)
+	p.connect_all(p.root)
 }
 
 // get stored service name
-func (p *service_pool) load_names() []string {
+func (p *service_pool) load_names(filepath string) []string {
 	kAPI := etcdclient.NewKeysAPI(p.client)
 	// get the keys under directory
-	log.Debugf("reading names:%v", DEFAULT_NAME_FILE)
-	resp, err := kAPI.Get(context.Background(), DEFAULT_NAME_FILE, nil)
+	log.Debugf("reading names:%v", filepath)
+	resp, err := kAPI.Get(context.Background(), filepath, nil)
 	if err != nil {
 		log.Error(err)
 		return nil
@@ -214,7 +192,7 @@ func (p *service_pool) connect_all(directory string) {
 // watcher for data change in etcd directory
 func (p *service_pool) watcher() {
 	kAPI := etcdclient.NewKeysAPI(p.client)
-	w := kAPI.Watcher(DEFAULT_SERVICE_PATH, &etcdclient.WatcherOptions{Recursive: true})
+	w := kAPI.Watcher(p.root, &etcdclient.WatcherOptions{Recursive: true})
 	for {
 		resp, err := w.Next(context.Background())
 		if err != nil {
@@ -242,11 +220,11 @@ func (p *service_pool) watcher() {
 
 // add a service
 func (p *service_pool) add_service(key, value string) bool {
-	p.Lock()
-	defer p.Unlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	// name check
 	service_name := filepath.Dir(key)
-	if p.enable_name_check && !p.known_names[service_name] {
+	if p.names_provided && !p.known_names[service_name] {
 		return true
 	}
 
@@ -257,7 +235,7 @@ func (p *service_pool) add_service(key, value string) bool {
 
 	// create service connection
 	service := p.services[service_name]
-	if conn, err := grpc.Dial(value, grpc.WithBlock(), grpc.WithInsecure(), grpc.WithTimeout(time.Duration(connect_timeout)*time.Second)); err == nil {
+	if conn, err := grpc.Dial(value, grpc.WithBlock(), grpc.WithInsecure(), grpc.WithTimeout(time.Duration(DEFAULT_TIMEOUT)*time.Second)); err == nil {
 		service.clients = append(service.clients, client{key, conn})
 		for k := range p.callbacks[service_name] {
 			select {
@@ -276,11 +254,11 @@ func (p *service_pool) add_service(key, value string) bool {
 
 // remove a service
 func (p *service_pool) remove_service(key string) {
-	p.Lock()
-	defer p.Unlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	// name check
 	service_name := filepath.Dir(key)
-	if p.enable_name_check && !p.known_names[service_name] {
+	if p.names_provided && !p.known_names[service_name] {
 		return
 	}
 
@@ -308,8 +286,8 @@ func (p *service_pool) remove_service(key string) {
 // the full cannonical path for this service is:
 // 			/backends/snowflake/s1
 func (p *service_pool) get_service_with_id(path string, id string) *grpc.ClientConn {
-	p.RLock()
-	defer p.RUnlock()
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 	// check existence
 	service := p.services[path]
 	if service == nil {
@@ -333,8 +311,8 @@ func (p *service_pool) get_service_with_id(path string, id string) *grpc.ClientC
 // get a service in round-robin style
 // especially useful for load-balance with state-less services
 func (p *service_pool) get_service(path string) (conn *grpc.ClientConn, key string) {
-	p.RLock()
-	defer p.RUnlock()
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 	// check existence
 	service := p.services[path]
 	if service == nil {
@@ -351,8 +329,8 @@ func (p *service_pool) get_service(path string) (conn *grpc.ClientConn, key stri
 }
 
 func (p *service_pool) register_callback(path string, callback chan string) {
-	p.Lock()
-	defer p.Unlock()
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	if p.callbacks == nil {
 		p.callbacks = make(map[string][]chan string)
 	}
