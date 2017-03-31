@@ -391,19 +391,19 @@ func timerStart() {
 /////////////////////////////////////////////////////////////////
 // Wrappers
 func GetService(path string) *grpc.ClientConn {
-	conn, _ := _default_pool.get_service(path)
+	conn, _ := _default_pool.get_service(_default_pool.root + "/" + path)
 	return conn
 }
 
 func GetService2(path string) (*grpc.ClientConn, string) {
-	conn, key := _default_pool.get_service(path)
+	conn, key := _default_pool.get_service(_default_pool.root + "/" + path)
 	return conn, key
 }
 
 func GetServiceWithId(path string, id string) *grpc.ClientConn {
-	return _default_pool.get_service_with_id(path, id)
+	return _default_pool.get_service_with_id(_default_pool.root+"/"+path, id)
 }
 
 func RegisterCallback(path string, callback chan string) {
-	_default_pool.register_callback(path, callback)
+	_default_pool.register_callback(_default_pool.root+"/"+path, callback)
 }
