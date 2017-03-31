@@ -3,7 +3,6 @@ package services
 import (
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -46,7 +45,7 @@ type service_pool struct {
 // retries
 type retry_manager struct {
 	retries map[string]int // key ==> retry times
-	sync.RWMutex
+	mu      sync.RWMutex
 }
 
 var (

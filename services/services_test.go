@@ -6,7 +6,7 @@ import (
 )
 
 func TestService(t *testing.T) {
-	Init()
+	Init("/backends", []string{"172.16.42.1:2379"}, []string{"snowflake"})
 	spew.Dump(_default_pool)
 	if GetService("/backends/snowflake") == nil {
 		t.Log("get service failed")
