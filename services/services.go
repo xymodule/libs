@@ -142,7 +142,7 @@ func (p *service_pool) init(root string, hosts, names []string) {
 func (p *service_pool) load_names(filepath string) []string {
 	kAPI := etcdclient.NewKeysAPI(p.client)
 	// get the keys under directory
-	log.Debugf("reading names:%v", filepath)
+	log.Infof("reading names:%v", filepath)
 	resp, err := kAPI.Get(context.Background(), filepath, nil)
 	if err != nil {
 		log.Error(err)
@@ -202,7 +202,7 @@ func (p *service_pool) watcher() {
 			continue
 		}
 
-		//log.Debug("Watcher: ", resp.Node.Key, "-->", resp.Node.Value, ":", resp.Action)
+		log.Infof("Watcher: %v %v %v", resp.Action, resp.Node.Key, resp.Node.Value)
 		switch resp.Action {
 		case "set", "create", "update", "compareAndSwap":
 			success := p.add_service(resp.Node.Key, resp.Node.Value)
@@ -264,7 +264,7 @@ func (p *service_pool) remove_service(key string) {
 	// check service kind
 	service := p.services[service_name]
 	if service == nil {
-		log.Debugf("no such service: %v", service_name)
+		log.Errorf("no such service: %v", service_name)
 		return
 	}
 
@@ -273,7 +273,7 @@ func (p *service_pool) remove_service(key string) {
 		if service.clients[k].key == key { // deletion
 			service.clients[k].conn.Close()
 			service.clients = append(service.clients[:k], service.clients[k+1:]...)
-			log.Debugf("service removed: %v", key)
+			log.Infof("service removed: %v", key)
 			return
 		}
 	}
