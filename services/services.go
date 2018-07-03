@@ -57,8 +57,8 @@ var (
 // Init() ***MUST*** be called before using
 func Init(root string, hosts, names []string) {
 	once.Do(func() {
-		_default_pool.init(root, hosts, names)
 		_retry_manager.init()
+		_default_pool.init(root, hosts, names)
 		//
 		timerStart()
 	})
@@ -182,9 +182,7 @@ func (p *service_pool) connect_all(directory string) {
 	for _, node := range resp.Node.Nodes {
 		if node.Dir { // service directory
 			for _, service := range node.Nodes {
-				if ok := p.add_service(service.Key, service.Value); !ok {
-					addRetry(service.Key)
-				}
+				p.add_service(service.Key, service.Value)
 			}
 		}
 	}
