@@ -176,6 +176,9 @@ func (p *service_pool) connect_all(directory string) {
 		return
 	}
 
+	// do not need to wait for exists connections complete
+	go p.watcher()
+
 	for _, node := range resp.Node.Nodes {
 		if node.Dir { // service directory
 			for _, service := range node.Nodes {
@@ -184,8 +187,6 @@ func (p *service_pool) connect_all(directory string) {
 		}
 	}
 	log.Info("services add complete")
-
-	go p.watcher()
 }
 
 // watcher for data change in etcd directory
