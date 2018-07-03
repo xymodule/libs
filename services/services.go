@@ -220,8 +220,6 @@ func (p *service_pool) watcher() {
 
 // add a service
 func (p *service_pool) add_service(key, value string) bool {
-	p.mu.Lock()
-	defer p.mu.Unlock()
 	// name check
 	service_name := filepath.Dir(key)
 	if p.names_provided && !p.known_names[service_name] {
@@ -229,13 +227,17 @@ func (p *service_pool) add_service(key, value string) bool {
 	}
 
 	// try new service kind init
+	p.mu.Lock()
 	if p.services[service_name] == nil {
 		p.services[service_name] = &service{}
 	}
+	p.mu.Unlock()
 
 	// create service connection
-	service := p.services[service_name]
 	if conn, err := grpc.Dial(value, grpc.WithBlock(), grpc.WithInsecure(), grpc.WithTimeout(time.Duration(DEFAULT_TIMEOUT)*time.Second)); err == nil {
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		service := p.services[service_name]
 		service.clients = append(service.clients, client{key, conn})
 		for k := range p.callbacks[service_name] {
 			select {
@@ -243,10 +245,10 @@ func (p *service_pool) add_service(key, value string) bool {
 			default:
 			}
 		}
-		log.Infof("service added (%v, %v)", key, value)
+		log.Infof("service added %v(%v)", key, value)
 		return true
 	} else {
-		log.Errorf("did not connect (%v, %v), Error: %v", key, value, err)
+		log.Errorf("connect on %v(%v), Error: %v", key, value, err)
 	}
 
 	return false
