@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	DEFAULT_TIMEOUT = 5
+	DEFAULT_TIMEOUT = 5 * time.Second
 	DEFAULT_RETRIES = 6 // failed connection retries (for every ten seconds)
 )
 
@@ -94,7 +94,7 @@ func (p *retry_manager) cycle_check() {
 			log.Debugf("Trying connecting:%v ......", key)
 			if del := retryConn(key); del == true {
 				p.retries[key] = 0
-				log.Infof("Connect on %v successfully !", key)
+				log.Infof("Retry connecting on %v successfully !", key)
 			} else {
 				p.retries[key]--
 			}
@@ -102,7 +102,7 @@ func (p *retry_manager) cycle_check() {
 
 		if p.retries[key] == 0 {
 			delete(p.retries, key)
-			log.Debugf("Delete connect retry:%v", key)
+			log.Debugf("Delete retry connect on %v", key)
 		}
 	}
 }
@@ -172,7 +172,7 @@ func (p *service_pool) connect_all(directory string) {
 
 	// validation check
 	if !resp.Node.Dir {
-		log.Error("not a directory")
+		log.Errorf("node %v not a directory", directory)
 		return
 	}
 
@@ -182,7 +182,9 @@ func (p *service_pool) connect_all(directory string) {
 	for _, node := range resp.Node.Nodes {
 		if node.Dir { // service directory
 			for _, service := range node.Nodes {
-				p.add_service(service.Key, service.Value)
+				if ok := p.add_service(service.Key, service.Value); !ok {
+					addRetry(service.Key)
+				}
 			}
 		}
 	}
@@ -206,8 +208,7 @@ func (p *service_pool) watcher() {
 		log.Debugf("Watcher: %v %v %v", resp.Action, resp.Node.Key, resp.Node.Value)
 		switch resp.Action {
 		case "set", "create", "update", "compareAndSwap":
-			success := p.add_service(resp.Node.Key, resp.Node.Value)
-			if !success {
+			if ok := p.add_service(resp.Node.Key, resp.Node.Value); !ok {
 				addRetry(resp.Node.Key)
 			}
 		case "delete":
@@ -234,7 +235,7 @@ func (p *service_pool) add_service(key, value string) bool {
 	p.mu.Unlock()
 
 	// create service connection
-	if conn, err := grpc.Dial(value, grpc.WithBlock(), grpc.WithInsecure(), grpc.WithTimeout(time.Duration(DEFAULT_TIMEOUT)*time.Second)); err == nil {
+	if conn, err := grpc.Dial(value, grpc.WithBlock(), grpc.WithInsecure(), grpc.WithTimeout(DEFAULT_TIMEOUT)); err == nil {
 		p.mu.Lock()
 		defer p.mu.Unlock()
 		service := p.services[service_name]
@@ -248,7 +249,7 @@ func (p *service_pool) add_service(key, value string) bool {
 		log.Infof("service added %v(%v)", key, value)
 		return true
 	} else {
-		log.Errorf("connect on %v(%v), Error: %v", key, value, err)
+		log.Errorf("service connect %v(%v), Error: %v", key, value, err)
 	}
 
 	return false
@@ -267,7 +268,7 @@ func (p *service_pool) remove_service(key string) {
 	// check service kind
 	service := p.services[service_name]
 	if service == nil {
-		log.Errorf("no such service: %v", service_name)
+		log.Errorf("service not exists: %v", service_name)
 		return
 	}
 
@@ -357,7 +358,7 @@ func (p *service_pool) retry_conn(key string) (del bool) {
 
 	if resp.Node.Dir {
 		del = true
-		log.Error(key, "is not a node")
+		log.Errorf("%v is not a node", key)
 		return
 	}
 
