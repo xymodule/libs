@@ -203,7 +203,7 @@ func (p *service_pool) watcher() {
 			continue
 		}
 
-		log.Infof("Watcher: %v %v %v", resp.Action, resp.Node.Key, resp.Node.Value)
+		log.Debugf("Watcher: %v %v %v", resp.Action, resp.Node.Key, resp.Node.Value)
 		switch resp.Action {
 		case "set", "create", "update", "compareAndSwap":
 			success := p.add_service(resp.Node.Key, resp.Node.Value)
