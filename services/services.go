@@ -329,6 +329,26 @@ func (p *service_pool) get_service(path string) (conn *grpc.ClientConn, key stri
 	return service.clients[idx].conn, service.clients[idx].key
 }
 
+func (p *service_pool) get_all_service(path string) (conns map[string]*grpc.ClientConn) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	service := p.services[path]
+	if service == nil {
+		return
+	}
+
+	if len(service.clients) == 0 {
+		return
+	}
+
+	conns = make(map[string]*grpc.ClientConn)
+	for _, v := range service.clients {
+		conns[v.key] = v.conn
+	}
+
+	return
+}
+
 func (p *service_pool) register_callback(path string, callback chan string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -404,6 +424,10 @@ func GetService2(path string) (*grpc.ClientConn, string) {
 
 func GetServiceWithId(path string, id string) *grpc.ClientConn {
 	return _default_pool.get_service_with_id(_default_pool.root+"/"+path, id)
+}
+
+func AllService(path string) map[string]*grpc.ClientConn {
+	return _default_pool.get_all_service(path)
 }
 
 func RegisterCallback(path string, callback chan string) {
