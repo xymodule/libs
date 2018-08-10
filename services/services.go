@@ -427,7 +427,7 @@ func GetServiceWithId(path string, id string) *grpc.ClientConn {
 }
 
 func AllService(path string) map[string]*grpc.ClientConn {
-	return _default_pool.get_all_service(path)
+	return _default_pool.get_all_service(_default_pool.root + "/" + path)
 }
 
 func RegisterCallback(path string, callback chan string) {
