@@ -12,6 +12,10 @@ import (
 	"golang.org/x/net/context"
 )
 
+const (
+	NUMBER_PREFIX_NODE = "/number_prefixs"
+)
+
 var (
 	once            sync.Once
 	_default_server server
@@ -24,18 +28,22 @@ func Init(root_path, service_id string, etcd_hosts []string) {
 }
 
 type server struct {
-	root       string
-	service_id string
-	client     etcdclient.Client
-	datas      map[string]map[string]int
-	mu         sync.RWMutex
+	root           string
+	service_id     string
+	client         etcdclient.Client
+	number_prefixs map[string]bool
+	number_datas   map[string]map[string]int
+	string_datas   map[string]map[string]string
+	mu             sync.RWMutex
 }
 
 func (p *server) init(root_path, service_id string, etcd_hosts []string) {
 	p.root = root_path
 	p.service_id = service_id
 
-	p.datas = make(map[string]map[string]int)
+	p.number_prefixs = make(map[string]bool)
+	p.number_datas = make(map[string]map[string]int)
+	p.string_datas = make(map[string]map[string]string)
 
 	cfg := etcdclient.Config{
 		Endpoints: etcd_hosts,
@@ -50,8 +58,20 @@ func (p *server) init(root_path, service_id string, etcd_hosts []string) {
 
 	p.client = c
 
+	p.load_number_prefixs(p.root + NUMBER_PREFIX_NODE)
+
 	//
 	p.load()
+}
+
+func (p *server) is_number_type(name string) bool {
+	for k := range p.number_prefixs {
+		if strings.HasPrefix(name, k) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (p *server) path(key string) (category, service string, err error) {
@@ -75,36 +95,67 @@ func (p *server) remove(key string) {
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if _, ok := p.datas[category]; ok {
-		delete(p.datas[category], service)
+
+	if ok := p.is_number_type(category); ok {
+		if _, ok := p.number_datas[category]; ok {
+			delete(p.number_datas[category], service)
+		}
+	} else {
+		if _, ok := p.string_datas[category]; ok {
+			delete(p.number_datas[category], service)
+		}
 	}
 }
 
-func (p *server) get(category, service string) (value int) {
+func (p *server) get_int(category, service string) (value int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if _, ok := p.datas[category]; ok {
-		value = p.datas[category][service]
+	if ok := p.is_number_type(category); ok {
+		if _, ok := p.number_datas[category]; ok {
+			value = p.number_datas[category][service]
+		}
 	}
 
 	return
 }
 
-func (p *server) get_group(category string) (group map[string]int) {
+func (p *server) get_str(category, service string) (value string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	group = p.datas[category]
+	if ok := p.is_number_type(category); !ok {
+		if _, ok := p.string_datas[category]; ok {
+			value = p.string_datas[category][service]
+		}
+	}
+
+	return
+}
+
+func (p *server) get_group_int(category string) (group map[string]int) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if ok := p.is_number_type(category); ok {
+		group = p.number_datas[category]
+	}
+
+	return
+}
+
+func (p *server) get_group_str(category string) (group map[string]string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if ok := p.is_number_type(category); !ok {
+		group = p.string_datas[category]
+	}
+
 	return
 }
 
 func (p *server) set(key, value string) {
-	num, err := strconv.Atoi(value)
-	if err != nil {
-		log.Errorf("Set %v = %v strconv.Atoi err %v", key, value, err)
-		return
-	}
 
 	category, service, err := p.path(key)
 	if err != nil {
@@ -114,18 +165,26 @@ func (p *server) set(key, value string) {
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if _, ok := p.datas[category]; !ok {
-		p.datas[category] = make(map[string]int)
+
+	if ok := p.is_number_type(category); ok {
+		num, err := strconv.Atoi(value)
+		if err != nil {
+			log.Errorf("Set %v = %v strconv.Atoi err %v", key, value, err)
+			return
+		}
+
+		if _, ok := p.number_datas[category]; !ok {
+			p.number_datas[category] = make(map[string]int)
+		}
+
+		p.number_datas[category][service] = num
+	} else {
+		if _, ok := p.string_datas[category]; !ok {
+			p.string_datas[category] = make(map[string]string)
+		}
+
+		p.string_datas[category][service] = value
 	}
-
-	p.datas[category][service] = num
-}
-
-func (p *server) execute(f func(map[string]map[string]int)) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	f(p.datas)
 }
 
 func (p *server) update(key, value string) {
@@ -135,6 +194,32 @@ func (p *server) update(key, value string) {
 	if err != nil {
 		log.Errorf("kapi set %v=%v err %v", key, value, err)
 	}
+}
+
+func (p *server) load_number_prefixs(filepath string) {
+	kAPI := etcdclient.NewKeysAPI(p.client)
+
+	// get the keys under directory
+	log.Infof("reading number types from:%v", filepath)
+	resp, err := kAPI.Get(context.Background(), filepath, nil)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	// validation check
+	if resp.Node.Dir {
+		log.Error("types is not a node")
+		return
+	}
+
+	// split types
+	types := strings.Split(resp.Node.Value, " ")
+	for _, v := range types {
+		p.number_prefixs[v] = true
+	}
+
+	log.Infof("reading number types :%v", resp.Node.Value)
 }
 
 func (p *server) load() {
@@ -184,14 +269,22 @@ func (p *server) watcher() {
 	}
 }
 
-func ServiceState(category, service string) int {
-	return _default_server.get(category, service)
+func ServiceVarInt(category, service string) int {
+	return _default_server.get_int(category, service)
 }
 
-func ServiceGroup(category string) map[string]int {
-	return _default_server.get_group(category)
+func ServiceVarStr(category, service string) string {
+	return _default_server.get_str(category, service)
 }
 
-func SetServiceState(key, value string) {
+func ServiceGroupInt(category string) map[string]int {
+	return _default_server.get_group_int(category)
+}
+
+func ServiceGroupStr(category string) map[string]string {
+	return _default_server.get_group_str(category)
+}
+
+func SetServiceVar(key, value string) {
 	_default_server.update(_default_server.root+"/"+key+"/"+_default_server.service_id, value)
 }
