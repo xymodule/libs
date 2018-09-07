@@ -14,27 +14,25 @@ var (
 
 // support pg and mysql
 func InitGorm(addr string, maxIdle, maxOpen int) (err error) {
-	once.Do(func() {
-		attrs := strings.Split(addr, ":")
-		var connector string
-		if attrs[0] == "postgresql" {
-			connector = "postgres"
-		} else {
-			connector = "mysql"
-		}
+	attrs := strings.Split(addr, ":")
+	var connector string
+	if attrs[0] == "postgresql" {
+		connector = "postgres"
+	} else {
+		connector = "mysql"
+	}
 
-		_gorm_db, err = gorm.Open(connector, addr)
-		if err != nil {
-			return
-		}
+	_gorm_db, err = gorm.Open(connector, addr)
+	if err != nil {
+		return
+	}
 
-		_gorm_db.LogMode(false)
-		_gorm_db.SingularTable(true)
+	_gorm_db.LogMode(false)
+	_gorm_db.SingularTable(true)
 
-		_gorm_db.DB().SetMaxIdleConns(maxIdle)
-		_gorm_db.DB().SetMaxOpenConns(maxOpen)
-		_gorm_db.DB().Ping()
-	})
+	_gorm_db.DB().SetMaxIdleConns(maxIdle)
+	_gorm_db.DB().SetMaxOpenConns(maxOpen)
+	_gorm_db.DB().Ping()
 
 	return
 }
