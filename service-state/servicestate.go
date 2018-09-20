@@ -133,24 +133,30 @@ func (p *server) get_str(category, service string) (value string) {
 	return
 }
 
-func (p *server) get_group_int(category string) (group map[string]int) {
+func (p *server) exec_group_int(category string, f func(map[string]int)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	var group map[string]int
 	if ok := p.is_number_type(category); ok {
 		group = p.number_datas[category]
 	}
 
+	f(group)
+
 	return
 }
 
-func (p *server) get_group_str(category string) (group map[string]string) {
+func (p *server) exec_group_str(category string, f func(map[string]string)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	var group map[string]string
 	if ok := p.is_number_type(category); !ok {
 		group = p.string_datas[category]
 	}
+
+	f(group)
 
 	return
 }
@@ -277,12 +283,12 @@ func ServiceVarStr(category, service string) string {
 	return _default_server.get_str(category, service)
 }
 
-func ServiceGroupInt(category string) map[string]int {
-	return _default_server.get_group_int(category)
+func ExecuteGroupInt(category string, f func(map[string]int)) {
+	_default_server.exec_group_int(category, f)
 }
 
-func ServiceGroupStr(category string) map[string]string {
-	return _default_server.get_group_str(category)
+func ExecuteGroupStr(category string, f func(map[string]string)) {
+	_default_server.exec_group_str(category, f)
 }
 
 func SetServiceVar(key, value string) {
