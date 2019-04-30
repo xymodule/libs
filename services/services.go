@@ -237,7 +237,17 @@ func (p *service_pool) add_service(key, value string) bool {
 		p.mu.Lock()
 		defer p.mu.Unlock()
 		service := p.services[service_name]
+
+		// remove old service if exists
+		for i := range service.clients {
+			if service.clients[i].key == key {
+				service.clients[i].conn.Close()
+				service.clients = append(service.clients[:i], service.clients[i+1:]...)
+				break
+			}
+		}
 		service.clients = append(service.clients, client{key, conn})
+
 		for k := range p.callbacks[service_name] {
 			select {
 			case p.callbacks[service_name][k] <- key:
