@@ -239,13 +239,16 @@ func (p *service_pool) add_service(key, value string) bool {
 		service := p.services[service_name]
 
 		// remove old service if exists
-		for i := range service.clients {
-			if service.clients[i].key == key {
-				service.clients[i].conn.Close()
-				service.clients = append(service.clients[:i], service.clients[i+1:]...)
-				break
+		// rollback
+		/*
+			for i := range service.clients {
+				if service.clients[i].key == key {
+					service.clients[i].conn.Close()
+					service.clients = append(service.clients[:i], service.clients[i+1:]...)
+					break
+				}
 			}
-		}
+		*/
 		service.clients = append(service.clients, client{key, conn})
 
 		for k := range p.callbacks[service_name] {
@@ -339,6 +342,23 @@ func (p *service_pool) get_service(path string) (conn *grpc.ClientConn, key stri
 	return service.clients[idx].conn, service.clients[idx].key
 }
 
+//
+func (p *service_pool) get_service_with_hash(path string, hash int) (conn *grpc.ClientConn, key string) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	service := p.services[path]
+	if service == nil {
+		return nil, ""
+	}
+
+	if len(service.clients) == 0 {
+		return nil, ""
+	}
+
+	idx := hash % len(service.clients)
+	return service.clients[idx].conn, service.clients[idx].key
+}
+
 func (p *service_pool) get_all_service(path string) (conns map[string]*grpc.ClientConn) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
@@ -422,18 +442,18 @@ func timerStart() {
 
 /////////////////////////////////////////////////////////////////
 // Wrappers
-func GetService(path string) *grpc.ClientConn {
-	conn, _ := _default_pool.get_service(_default_pool.root + "/" + path)
-	return conn
-}
-
-func GetService2(path string) (*grpc.ClientConn, string) {
+func GetService(path string) (*grpc.ClientConn, string) {
 	conn, key := _default_pool.get_service(_default_pool.root + "/" + path)
 	return conn, key
 }
 
 func GetServiceWithId(path string, id string) *grpc.ClientConn {
 	return _default_pool.get_service_with_id(_default_pool.root+"/"+path, id)
+}
+
+func GetServiceWithHash(path string, value int) (*grpc.ClientConn, string) {
+	conn, key := _default_pool.get_service_with_hash(_default_pool.root+"/"+path, value)
+	return conn, key
 }
 
 func AllService(path string) map[string]*grpc.ClientConn {
