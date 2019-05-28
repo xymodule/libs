@@ -117,7 +117,7 @@ func (p *server) get_int(category, service string) (value int) {
 		}
 	}
 
-	return
+	return -1
 }
 
 func (p *server) get_str(category, service string) (value string) {
