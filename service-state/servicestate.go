@@ -114,6 +114,7 @@ func (p *server) get_int(category, service string) (value int) {
 	if ok := p.is_number_type(category); ok {
 		if _, ok := p.number_datas[category]; ok {
 			value = p.number_datas[category][service]
+			return
 		}
 	}
 
@@ -127,6 +128,7 @@ func (p *server) get_str(category, service string) (value string) {
 	if ok := p.is_number_type(category); !ok {
 		if _, ok := p.string_datas[category]; ok {
 			value = p.string_datas[category][service]
+			return
 		}
 	}
 
