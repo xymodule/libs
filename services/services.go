@@ -221,6 +221,7 @@ func (p *service_pool) watcher() {
 func (p *service_pool) add_service(key, value string) bool {
 	// name check
 	service_name := filepath.Dir(key)
+	service_name = strings.ReplaceAll(service_name,"\\","/")
 	if p.names_provided && !p.known_names[service_name] {
 		return true
 	}
