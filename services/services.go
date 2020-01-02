@@ -131,7 +131,7 @@ func (p *service_pool) init(root string, hosts, names []string) {
 
 	log.Infof("all service names:%v", names)
 	for _, v := range names {
-		p.known_names[p.root+"/"+strings.TrimSpace(v)] = true
+		p.known_names[filepath.Join(p.root, strings.TrimSpace(v))] = true
 	}
 
 	// start connection
@@ -139,11 +139,11 @@ func (p *service_pool) init(root string, hosts, names []string) {
 }
 
 // get stored service name
-func (p *service_pool) load_names(filepath string) []string {
+func (p *service_pool) load_names(fullpath string) []string {
 	kAPI := etcdclient.NewKeysAPI(p.client)
 	// get the keys under directory
-	log.Infof("reading names:%v", filepath)
-	resp, err := kAPI.Get(context.Background(), filepath, nil)
+	log.Infof("reading names:%v", fullpath)
+	resp, err := kAPI.Get(context.Background(), fullpath, nil)
 	if err != nil {
 		log.Error(err)
 		return nil
@@ -221,7 +221,6 @@ func (p *service_pool) watcher() {
 func (p *service_pool) add_service(key, value string) bool {
 	// name check
 	service_name := filepath.Dir(key)
-	service_name = strings.ReplaceAll(service_name,"\\","/")
 	if p.names_provided && !p.known_names[service_name] {
 		return true
 	}
@@ -313,7 +312,7 @@ func (p *service_pool) get_service_with_id(path string, id string) *grpc.ClientC
 	}
 
 	// loop find a service with id
-	fullpath := string(path) + "/" + id
+	fullpath := filepath.Join(path, id)
 	for k := range service.clients {
 		if service.clients[k].key == fullpath {
 			return service.clients[k].conn
@@ -444,23 +443,23 @@ func timerStart() {
 /////////////////////////////////////////////////////////////////
 // Wrappers
 func GetService(path string) (*grpc.ClientConn, string) {
-	conn, key := _default_pool.get_service(_default_pool.root + "/" + path)
+	conn, key := _default_pool.get_service(filepath.Join(_default_pool.root, path))
 	return conn, key
 }
 
 func GetServiceWithId(path string, id string) *grpc.ClientConn {
-	return _default_pool.get_service_with_id(_default_pool.root+"/"+path, id)
+	return _default_pool.get_service_with_id(filepath.Join(_default_pool.root, path), id)
 }
 
 func GetServiceWithHash(path string, value int) (*grpc.ClientConn, string) {
-	conn, key := _default_pool.get_service_with_hash(_default_pool.root+"/"+path, value)
+	conn, key := _default_pool.get_service_with_hash(filepath.Join(_default_pool.root, path), value)
 	return conn, key
 }
 
 func AllService(path string) map[string]*grpc.ClientConn {
-	return _default_pool.get_all_service(_default_pool.root + "/" + path)
+	return _default_pool.get_all_service(filepath.Join(_default_pool.root, path))
 }
 
 func RegisterCallback(path string, callback chan string) {
-	_default_pool.register_callback(_default_pool.root+"/"+path, callback)
+	_default_pool.register_callback(filepath.Join(_default_pool.root, path), callback)
 }
