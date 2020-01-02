@@ -3,6 +3,7 @@ package servicestate
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -13,7 +14,7 @@ import (
 )
 
 const (
-	NUMBER_PREFIX_NODE = "/number_prefixs"
+	NUMBER_PREFIX_NODE = "number_prefixs"
 )
 
 var (
@@ -58,7 +59,7 @@ func (p *server) init(root_path, service_id string, etcd_hosts []string) {
 
 	p.client = c
 
-	p.load_number_prefixs(p.root + NUMBER_PREFIX_NODE)
+	p.load_number_prefixs(filepath.Join(p.root, NUMBER_PREFIX_NODE))
 
 	//
 	p.load()
@@ -75,7 +76,12 @@ func (p *server) is_number_type(name string) bool {
 }
 
 func (p *server) path(key string) (category, service string, err error) {
-	params := strings.Split(key, "/")
+	var seperator string = "/"
+	if strings.Contains(key, "\\") {
+		seperator = "\\"
+	}
+
+	params := strings.Split(key, seperator)
 	if len(params) != 4 {
 		err = fmt.Errorf("Split %v len not equal 4", key)
 		return
@@ -294,5 +300,5 @@ func ExecuteGroupStr(category string, f func(map[string]string)) {
 }
 
 func SetServiceVar(key, value string) {
-	_default_server.update(_default_server.root+"/"+key+"/"+_default_server.service_id, value)
+	_default_server.update(filepath.Join(_default_server.root, key, _default_server.service_id), value)
 }
