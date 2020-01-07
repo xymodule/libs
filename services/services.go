@@ -58,6 +58,11 @@ func path_join(params ...string) string {
 	return strings.Join(params, "/")
 }
 
+func path_dir(path string) string {
+	dir := filepath.Dir(path)
+	return strings.ReplaceAll(dir, "\\", "/")
+}
+
 // Init() ***MUST*** be called before using
 func Init(root string, hosts, names []string) {
 	once.Do(func() {
@@ -224,7 +229,7 @@ func (p *service_pool) watcher() {
 // add a service
 func (p *service_pool) add_service(key, value string) bool {
 	// name check
-	service_name := filepath.Dir(key)
+	service_name := path_dir(key)
 	if p.names_provided && !p.known_names[service_name] {
 		return true
 	}
@@ -275,7 +280,7 @@ func (p *service_pool) remove_service(key string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	// name check
-	service_name := filepath.Dir(key)
+	service_name := path_dir(key)
 	if p.names_provided && !p.known_names[service_name] {
 		return
 	}
