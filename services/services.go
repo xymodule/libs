@@ -54,6 +54,10 @@ var (
 	once           sync.Once
 )
 
+func path_join(params ...string) string {
+	return strings.Join(params, "/")
+}
+
 // Init() ***MUST*** be called before using
 func Init(root string, hosts, names []string) {
 	once.Do(func() {
@@ -131,7 +135,7 @@ func (p *service_pool) init(root string, hosts, names []string) {
 
 	log.Infof("all service names:%v", names)
 	for _, v := range names {
-		p.known_names[filepath.Join(p.root, strings.TrimSpace(v))] = true
+		p.known_names[path_join(p.root, strings.TrimSpace(v))] = true
 	}
 
 	// start connection
@@ -312,7 +316,7 @@ func (p *service_pool) get_service_with_id(path string, id string) *grpc.ClientC
 	}
 
 	// loop find a service with id
-	fullpath := filepath.Join(path, id)
+	fullpath := path_join(path, id)
 	for k := range service.clients {
 		if service.clients[k].key == fullpath {
 			return service.clients[k].conn
@@ -443,23 +447,23 @@ func timerStart() {
 /////////////////////////////////////////////////////////////////
 // Wrappers
 func GetService(path string) (*grpc.ClientConn, string) {
-	conn, key := _default_pool.get_service(filepath.Join(_default_pool.root, path))
+	conn, key := _default_pool.get_service(path_join(_default_pool.root, path))
 	return conn, key
 }
 
 func GetServiceWithId(path string, id string) *grpc.ClientConn {
-	return _default_pool.get_service_with_id(filepath.Join(_default_pool.root, path), id)
+	return _default_pool.get_service_with_id(path_join(_default_pool.root, path), id)
 }
 
 func GetServiceWithHash(path string, value int) (*grpc.ClientConn, string) {
-	conn, key := _default_pool.get_service_with_hash(filepath.Join(_default_pool.root, path), value)
+	conn, key := _default_pool.get_service_with_hash(path_join(_default_pool.root, path), value)
 	return conn, key
 }
 
 func AllService(path string) map[string]*grpc.ClientConn {
-	return _default_pool.get_all_service(filepath.Join(_default_pool.root, path))
+	return _default_pool.get_all_service(path_join(_default_pool.root, path))
 }
 
 func RegisterCallback(path string, callback chan string) {
-	_default_pool.register_callback(filepath.Join(_default_pool.root, path), callback)
+	_default_pool.register_callback(path_join(_default_pool.root, path), callback)
 }
