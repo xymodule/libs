@@ -191,7 +191,9 @@ func (p *service_pool) connect_all(directory string) {
 	for _, node := range resp.Node.Nodes {
 		if node.Dir { // service directory
 			for _, service := range node.Nodes {
-				p.add_service(service.Key, service.Value)
+				if ok := p.add_service(service.Key, service.Value); !ok {
+					addRetry(service.Key)
+				}
 			}
 		}
 	}
