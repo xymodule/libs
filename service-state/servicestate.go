@@ -3,7 +3,6 @@ package servicestate
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -26,6 +25,10 @@ func Init(root_path, service_id string, etcd_hosts []string) {
 	once.Do(func() {
 		_default_server.init(root_path, service_id, etcd_hosts)
 	})
+}
+
+func path_join(params ...string) string {
+	return strings.Join(params, "/")
 }
 
 type server struct {
@@ -59,7 +62,7 @@ func (p *server) init(root_path, service_id string, etcd_hosts []string) {
 
 	p.client = c
 
-	p.load_number_prefixs(filepath.Join(p.root, NUMBER_PREFIX_NODE))
+	p.load_number_prefixs(path_join(p.root, NUMBER_PREFIX_NODE))
 
 	//
 	p.load()
@@ -300,5 +303,5 @@ func ExecuteGroupStr(category string, f func(map[string]string)) {
 }
 
 func SetServiceVar(key, value string) {
-	_default_server.update(filepath.Join(_default_server.root, key, _default_server.service_id), value)
+	_default_server.update(path_join(_default_server.root, key, _default_server.service_id), value)
 }
