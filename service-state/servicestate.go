@@ -3,6 +3,7 @@ package servicestate
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -31,6 +32,11 @@ func path_join(params ...string) string {
 	return strings.Join(params, "/")
 }
 
+func path_dir(path string) string {
+	dir := filepath.Dir(path)
+	return strings.ReplaceAll(dir, "\\", "/")
+}
+
 type server struct {
 	root           string
 	service_id     string
@@ -38,6 +44,8 @@ type server struct {
 	number_prefixs map[string]bool
 	number_datas   map[string]map[string]int
 	string_datas   map[string]map[string]string
+	pathdatas      map[string]string
+	callbacks      map[string][]chan string // callback on change
 	mu             sync.RWMutex
 }
 
@@ -48,6 +56,8 @@ func (p *server) init(root_path, service_id string, etcd_hosts []string) {
 	p.number_prefixs = make(map[string]bool)
 	p.number_datas = make(map[string]map[string]int)
 	p.string_datas = make(map[string]map[string]string)
+	p.pathdatas = make(map[string]string)
+	p.callbacks = make(map[string][]chan string)
 
 	cfg := etcdclient.Config{
 		Endpoints: etcd_hosts,
@@ -95,6 +105,46 @@ func (p *server) path(key string) (category, service string, err error) {
 	return
 }
 
+func (p *server) set(key, value string) {
+	category, service, err := p.path(key)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.pathdatas[key] = value
+	if ok := p.is_number_type(category); ok {
+		num, err := strconv.Atoi(value)
+		if err != nil {
+			log.Errorf("Set %v = %v strconv.Atoi err %v", key, value, err)
+			return
+		}
+
+		if _, ok := p.number_datas[category]; !ok {
+			p.number_datas[category] = make(map[string]int)
+		}
+
+		p.number_datas[category][service] = num
+	} else {
+		if _, ok := p.string_datas[category]; !ok {
+			p.string_datas[category] = make(map[string]string)
+		}
+
+		p.string_datas[category][service] = value
+	}
+
+	callback_path := path_dir(key)
+	for k := range p.callbacks[callback_path] {
+		select {
+		case p.callbacks[callback_path][k] <- key:
+		default:
+		}
+	}
+}
+
 func (p *server) remove(key string) {
 	category, service, err := p.path(key)
 	if err != nil {
@@ -112,6 +162,15 @@ func (p *server) remove(key string) {
 	} else {
 		if _, ok := p.string_datas[category]; ok {
 			delete(p.number_datas[category], service)
+		}
+	}
+	delete(p.pathdatas, key)
+
+	callback_path := path_dir(key)
+	for k := range p.callbacks[callback_path] {
+		select {
+		case p.callbacks[callback_path][k] <- key:
+		default:
 		}
 	}
 }
@@ -170,38 +229,6 @@ func (p *server) exec_group_str(category string, f func(map[string]string)) {
 	f(group)
 
 	return
-}
-
-func (p *server) set(key, value string) {
-
-	category, service, err := p.path(key)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	if ok := p.is_number_type(category); ok {
-		num, err := strconv.Atoi(value)
-		if err != nil {
-			log.Errorf("Set %v = %v strconv.Atoi err %v", key, value, err)
-			return
-		}
-
-		if _, ok := p.number_datas[category]; !ok {
-			p.number_datas[category] = make(map[string]int)
-		}
-
-		p.number_datas[category][service] = num
-	} else {
-		if _, ok := p.string_datas[category]; !ok {
-			p.string_datas[category] = make(map[string]string)
-		}
-
-		p.string_datas[category][service] = value
-	}
 }
 
 func (p *server) update(key, value string) {
@@ -286,6 +313,22 @@ func (p *server) watcher() {
 	}
 }
 
+func (p *server) register_callback(path string, callback chan string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.callbacks[path] = append(p.callbacks[path], callback)
+
+	for k := range p.pathdatas {
+		callback_path := path_dir(k)
+		if callback_path != path {
+			continue
+		}
+
+		callback <- k
+	}
+	log.Infof("register callback on: %v", path)
+}
+
 func ServiceVarInt(category, service string) int {
 	return _default_server.get_int(category, service)
 }
@@ -302,6 +345,14 @@ func ExecuteGroupStr(category string, f func(map[string]string)) {
 	_default_server.exec_group_str(category, f)
 }
 
-func SetServiceVar(key, value string) {
-	_default_server.update(path_join(_default_server.root, key, _default_server.service_id), value)
+func SetServiceVar(path, value string) {
+	UpdateGlobalVar(path, _default_server.service_id, value)
+}
+
+func UpdateGlobalVar(path, key, value string) {
+	_default_server.update(path_join(_default_server.root, path, key), value)
+}
+
+func RegisterCallback(path string, callback chan string) {
+	_default_server.register_callback(path_join(_default_server.root, path), callback)
 }
