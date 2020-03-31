@@ -355,12 +355,12 @@ func ExecuteGroupStr(category string, f func(map[string]string)) {
 	_default_server.exec_group_str(category, f)
 }
 
-func SetServiceVar(path, value string) {
-	UpdateGlobalVar(path, _default_server.service_id, value)
+func SetServiceVar(path, value string) error {
+	return UpdateGlobalVar(path, _default_server.service_id, value)
 }
 
-func UpdateGlobalVar(path, key, value string) {
-	_default_server.update(path_join(_default_server.root, path, key), value)
+func UpdateGlobalVar(path, key, value string) error {
+	return _default_server.update(path_join(_default_server.root, path, key), value)
 }
 
 func RegisterCallback(path string, callback chan string) {
