@@ -237,6 +237,7 @@ func (p *server) update(key, value string) (err error) {
 	var resp *etcdclient.Response
 	resp, err = kAPI.Get(context.Background(), key, nil)
 	if err != nil {
+		_, err = kAPI.Create(context.Background(), key, value)
 		return
 	}
 
@@ -245,7 +246,7 @@ func (p *server) update(key, value string) (err error) {
 	}
 
 	prevIndex := resp.Node.ModifiedIndex
-	resp, err = kAPI.Set(context.Background(), key, value, &etcdclient.SetOptions{PrevIndex: prevIndex})
+	_, err = kAPI.Set(context.Background(), key, value, &etcdclient.SetOptions{PrevIndex: prevIndex})
 	return
 }
 
