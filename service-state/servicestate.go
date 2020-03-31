@@ -231,13 +231,22 @@ func (p *server) exec_group_str(category string, f func(map[string]string)) {
 	return
 }
 
-func (p *server) update(key, value string) {
+func (p *server) update(key, value string) (err error) {
 	kAPI := etcdclient.NewKeysAPI(p.client)
 
-	_, err := kAPI.Set(context.Background(), key, value, nil)
+	var resp *etcdclient.Response
+	resp, err = kAPI.Get(context.Background(), key, nil)
 	if err != nil {
-		log.Errorf("kapi set %v=%v err %v", key, value, err)
+		return
 	}
+
+	if value == resp.Node.Value {
+		return fmt.Errorf("update %v, %v duplicated", key, value)
+	}
+
+	prevIndex := resp.Node.ModifiedIndex
+	resp, err = kAPI.Set(context.Background(), key, value, &etcdclient.SetOptions{PrevIndex: prevIndex})
+	return
 }
 
 func (p *server) load_number_prefixs(filepath string) {
