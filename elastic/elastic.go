@@ -49,7 +49,7 @@ func Init(description map[string]string, nodes ...string) {
 func CreateMapping(key string, mapping string) error {
 	_, ok := databases[key]
 	if !ok {
-		return fmt.Errorf("elastic new mapping key %v not exist in databases", key)
+		return fmt.Errorf("elastic new mapping key %v not exist in indices", key)
 	}
 	exist, err := client.IndexExists(key).Do(context.Background())
 	if err != nil {
@@ -78,7 +78,7 @@ func NewBoolQuery(must map[string]string, should map[string]string) *els.BoolQue
 func Create(key string, id int64, message proto.Message) error {
 	tpy, ok := databases[key]
 	if !ok {
-		return fmt.Errorf("elastic create key %v not exist in databases", key)
+		return fmt.Errorf("elastic create key %v not exist in indices", key)
 	}
 	_, err := client.Index().
 		Index(key).
@@ -92,7 +92,7 @@ func Create(key string, id int64, message proto.Message) error {
 func Get(key string, id int64) (interface{}, error) {
 	tpy, ok := databases[key]
 	if !ok {
-		return nil, fmt.Errorf("elastic query key %v not exist in databases", key)
+		return nil, fmt.Errorf("elastic query key %v not exist in indices", key)
 	}
 	doc, err := client.Get().Index(key).Type(tpy).Id(fmt.Sprintf("%v", id)).Do(context.Background())
 	if err != nil {
@@ -115,7 +115,7 @@ func newMessageByName(name string) interface{} {
 func Delete(key string, id int64) error {
 	tpy, ok := databases[key]
 	if !ok {
-		return fmt.Errorf("elastic del key %v not exist in databases", key)
+		return fmt.Errorf("elastic del key %v not exist in indices", key)
 	}
 	_, err := client.Delete().Index(key).
 		Type(tpy).
@@ -127,7 +127,7 @@ func Delete(key string, id int64) error {
 func DeleteByQuery(key string, cond *els.BoolQuery) error {
 	_, ok := databases[key]
 	if !ok {
-		return fmt.Errorf("elastic del by query key %v not exist in databases", key)
+		return fmt.Errorf("elastic del by query key %v not exist in indices", key)
 	}
 	_, err := client.DeleteByQuery(key).Query(cond).Do(context.Background())
 	return err
@@ -136,7 +136,7 @@ func DeleteByQuery(key string, cond *els.BoolQuery) error {
 func SaveOrUpdate(key string, id int64, message proto.Message) error {
 	tpy, ok := databases[key]
 	if !ok {
-		return fmt.Errorf("elastic update key %v not exist in databases", key)
+		return fmt.Errorf("elastic update key %v not exist in indices", key)
 	}
 	_, err := client.Update().
 		Index(key).
@@ -151,7 +151,7 @@ func SaveOrUpdate(key string, id int64, message proto.Message) error {
 func Update(key string, id int64, message proto.Message) error {
 	tpy, ok := databases[key]
 	if !ok {
-		return fmt.Errorf("elastic update key %v not exist in databases", key)
+		return fmt.Errorf("elastic update key %v not exist in indices", key)
 	}
 	_, err := client.Update().
 		Index(key).
@@ -165,7 +165,7 @@ func Update(key string, id int64, message proto.Message) error {
 func SortBy(key string, cond *els.BoolQuery, page int, size int, field string, asc bool) (items []interface{}, err error) {
 	tpy, ok := databases[key]
 	if !ok {
-		return nil, fmt.Errorf("elastic sort key %v not exist in databases", key)
+		return nil, fmt.Errorf("elastic sort key %v not exist in indices", key)
 	}
 	res, err := client.Search().
 		Index(key).
@@ -187,7 +187,7 @@ func SortBy(key string, cond *els.BoolQuery, page int, size int, field string, a
 func BoolQuery(key string, cond *els.BoolQuery, size int) (items []interface{}, err error) {
 	tpy, ok := databases[key]
 	if !ok {
-		return nil, fmt.Errorf("elastic bool query key %v not exist in databases", key)
+		return nil, fmt.Errorf("elastic bool query key %v not exist in indices", key)
 	}
 	res, err := client.Search(key).Type(tpy).Query(cond).Size(size).Do(context.Background())
 	if err != nil {
@@ -203,7 +203,7 @@ func BoolQuery(key string, cond *els.BoolQuery, size int) (items []interface{}, 
 func Query(key string, page int, size int) (items []interface{}, err error) {
 	tpy, ok := databases[key]
 	if !ok {
-		return nil, fmt.Errorf("elastic query list key %v not exist in databases", key)
+		return nil, fmt.Errorf("elastic query list key %v not exist in indices", key)
 	}
 	var result *els.SearchResult
 	if size > 0 {
@@ -236,7 +236,7 @@ func Exist(key string) bool {
 func Clear(key string) error {
 	tpy, ok := databases[key]
 	if !ok {
-		return fmt.Errorf("elastic clear index %v not exist in databases", key)
+		return fmt.Errorf("elastic clear index %v not exist in indices", key)
 	}
 	_, err := client.Delete().Index(key).
 		Type(tpy).
