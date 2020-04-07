@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 	els "github.com/olivere/elastic"
 	log "github.com/sirupsen/logrus"
 	"reflect"
