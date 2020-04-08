@@ -9,5 +9,5 @@ require (
 	github.com/mailru/easyjson v0.7.1 // indirect
 	github.com/olivere/elastic v6.2.29+incompatible
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/sirupsen/logrus v1.5.0
+	github.com/sirupsen/logrus v1.4.2
 )
