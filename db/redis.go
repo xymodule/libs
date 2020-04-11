@@ -85,6 +85,17 @@ func RedisHGet(hKey, key string) (value string, err error) {
 	return
 }
 
+func RedisHMGet(hKey string, keys ...string) (values []interface{}, err error) {
+	client := GetRedis()
+	if client == nil {
+		err = errors.New("redis service unavailable")
+		return
+	}
+
+	values, err = client.HMGet(hKey, keys...).Result()
+	return
+}
+
 func RedisHIncr(hKey, key string, num int64) (err error) {
 	client := GetRedis()
 	if client == nil {
