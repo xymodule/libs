@@ -1,14 +1,12 @@
 package db
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
 
 	"github.com/golang/protobuf/proto"
-	log "github.com/sirupsen/logrus"
 )
 
 type ProtoByte struct {
@@ -24,17 +22,17 @@ func (p *ProtoByte) Bind(o interface{}, key string) {
 func (p *ProtoByte) Load() error {
 	reply, err := RedisGet(p.key)
 	if err != nil {
-		return fmt.Errorf("Load data %v redisGet error %v", p.key, err)
+		return err
 	}
 
 	bytes, err := reply.Bytes()
 	if err != nil {
-		return fmt.Errorf("Load data %v reply error %v", p.key, err)
+		return err
 	}
 
 	err = proto.Unmarshal(bytes, p.base.(proto.Message))
 	if err != nil {
-		return fmt.Errorf("Load data %v unmarshal error %v", p.key, err)
+		return err
 	}
 
 	return nil
@@ -43,12 +41,12 @@ func (p *ProtoByte) Load() error {
 func (p *ProtoByte) Save() error {
 	bytes, err := proto.Marshal(p.base.(proto.Message))
 	if err != nil {
-		return fmt.Errorf("Save data %v marshal error %v", p.key, err)
+		return err
 	}
 
 	err = RedisSet(p.key, bytes)
 	if err != nil {
-		return fmt.Errorf("Save data %v redisSet error %v", p.key, err)
+		return err
 	}
 
 	return nil
@@ -64,29 +62,30 @@ func (p *ProtoHash) Bind(o interface{}, key string) {
 	p.hKey = key
 }
 
-func (p *ProtoHash) Load() (err error) {
+func (p *ProtoHash) Load() (err error, desc string) {
 	ov := reflect.ValueOf(p.base)
 	if ov.IsNil() {
-		err = errors.New("Load base value is nil")
+		err = fmt.Errorf("base %v is nil", p.hKey)
 		return
 	}
 
-	hashmap, err := RedisHash(p.hKey)
+	var hashmap map[string]string
+	hashmap, err = RedisHash(p.hKey)
 	if err != nil {
-		return err
+		return
 	}
 
 	for key, value := range hashmap {
 		fv := ov.Elem().FieldByName(key)
 		if !fv.IsValid() {
-			log.Errorf("Load field %v is invalid", key)
-			// 兼容字段修改
+			desc += fmt.Sprintf("%v.%v invalid", p.hKey, key)
+			// 兼容废弃字段
 			continue
 		}
 
 		err = p.parse(fv, value)
 		if err != nil {
-			err = fmt.Errorf("parse field %v err %v", key, err)
+			err = fmt.Errorf("parse %v.%v err %v", p.hKey, key, err)
 			return
 		}
 	}
@@ -94,7 +93,7 @@ func (p *ProtoHash) Load() (err error) {
 	return
 }
 
-func (p *ProtoHash) Save() error {
+func (p *ProtoHash) Save() (err error, desc string) {
 	rf := reflect.ValueOf(p.base)
 	ov := reflect.Indirect(rf)
 
@@ -104,26 +103,27 @@ func (p *ProtoHash) Save() error {
 			continue
 		}
 
-		err := p.SaveField(name)
+		err = p.SaveField(name)
 		if err != nil {
-			log.Error(err)
+			desc += fmt.Sprintf("%v save err %v;", p.hKey, err)
+			// 保存其他字段
 			continue
 		}
 	}
 
-	return nil
+	return
 }
 
 func (p *ProtoHash) LoadField(name string) (err error) {
 	ov := reflect.ValueOf(p.base)
 	if ov.IsNil() {
-		err = fmt.Errorf("LoadField %v base value is nil", name)
+		err = fmt.Errorf("base %v is nil", p.hKey)
 		return
 	}
 
 	fv := ov.Elem().FieldByName(name)
 	if !fv.IsValid() {
-		err = fmt.Errorf("LoadField %v field is invalid", name)
+		err = fmt.Errorf("%v.%v invalid", p.hKey, name)
 		return
 	}
 
@@ -135,34 +135,68 @@ func (p *ProtoHash) LoadField(name string) (err error) {
 			return
 		}
 
-		err = fmt.Errorf("LoadField %v error %v", name, err)
+		err = fmt.Errorf("RedisHGet %v.%v err %v", p.hKey, name, err)
 		return
 	}
 
-	err = p.parse(fv, value)
-	if err != nil {
-		log.Errorf("parse field %v error %v", name, err)
-		return err
+	return p.parse(fv, value)
+}
+
+func (p *ProtoHash) LoadFields(names ...string) (err error) {
+	ov := reflect.ValueOf(p.base)
+	if ov.IsNil() {
+		err = fmt.Errorf("%v base is nil", p.hKey)
+		return
 	}
 
-	return nil
+	var results []interface{}
+	results, err = RedisHMGet(p.hKey, names...)
+	if err != nil {
+		err = fmt.Errorf("RedisHMGet %v.%v err %v", p.hKey, names, err)
+		return
+	}
+
+	for i, name := range names {
+		if results[i] == nil {
+			continue
+		}
+
+		fv := ov.Elem().FieldByName(name)
+		if !fv.IsValid() {
+			err = fmt.Errorf("%v.%v invalid", p.hKey, name)
+			return
+		}
+
+		value, ok := results[i].(string)
+		if !ok {
+			err = fmt.Errorf("%v.%v value not string", p.hKey, name)
+			return
+		}
+
+		err = p.parse(fv, value)
+		if err != nil {
+			return
+		}
+	}
+
+	return
 }
 
 func (p *ProtoHash) SaveField(name string) (err error) {
 	ov := reflect.ValueOf(p.base)
 	if ov.IsNil() {
-		err = fmt.Errorf("SaveField %v base value is nil", name)
+		err = fmt.Errorf("base %v is nil", p.hKey)
 		return
 	}
 
 	fv := ov.Elem().FieldByName(name)
 	if !fv.IsValid() {
-		err = fmt.Errorf("SaveField %v field is invalid", name)
+		err = fmt.Errorf("%v.%v invalid", p.hKey, name)
 		return
 	}
 
 	if fv.IsNil() {
-		err = fmt.Errorf("SaveField field %v value is nil", name)
+		err = fmt.Errorf("%v.%v is nil", p.hKey, name)
 		return
 	}
 
@@ -255,7 +289,7 @@ func (p *ProtoHash) parse(fieldValue reflect.Value, value string) error {
 			//fieldValue.Set(reflect.ValueOf(proto.Int32(int32(v))))
 		*/
 	default:
-		return errors.New("the type of value not recogized")
+		return fmt.Errorf("type %v not handled", ft.String())
 	}
 
 	return nil
@@ -315,7 +349,7 @@ func (p *ProtoHash) format(fieldValue reflect.Value) (value string, err error) {
 		value = strconv.FormatBool(*v)
 		return
 	default:
-		err = errors.New("type not recognized")
+		err = fmt.Errorf("type %v not handled", ft.String())
 	}
 
 	return
