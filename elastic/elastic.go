@@ -14,6 +14,7 @@ import (
 var (
 	client    *els.Client
 	databases map[string]string
+	hosts     []string
 )
 
 func Init(description map[string]string, nodes ...string) {
@@ -21,12 +22,14 @@ func Init(description map[string]string, nodes ...string) {
 		return
 	}
 	databases = description
+	hosts = nodes
 	var err error
 	var options []els.ClientOptionFunc
 	options = append(options, els.SetURL(nodes...))
 	options = append(options, els.SetSniff(false))
 	options = append(options, els.SetHealthcheck(true))
 	options = append(options, els.SetHealthcheckInterval(10*time.Second))
+	options = append(options, els.SetRetrier(els.NewBackoffRetrier(els.NewSimpleBackoff(100, 100, 100, 100, 100))))
 	options = append(options, els.SetErrorLog(log.New()))
 	client, err = els.NewClient(options...)
 	if err != nil {
@@ -43,7 +46,48 @@ func Init(description map[string]string, nodes ...string) {
 		panic(err)
 	}
 	log.Infof("Elasticsearch version %s\n", esversion)
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				if err := checkHealth(); err != nil {
+					log.Errorf("Elasticsearch checkHealth err %v", err)
+					err = reconnect()
+					if err != nil {
+						log.Errorf("Elasticsearch reconnect err %v", err)
+					}
+				}
+			}
+		}
+	}()
 	//PutMapping().Index(testIndexName3).Type("doc").BodyString(mapping).Do(context.TODO())
+}
+
+func reconnect() error {
+	var err error
+	if client != nil {
+		client.Stop()
+	}
+
+	var options []elastic.ClientOptionFunc
+	options = append(options, elastic.SetURL(hosts))
+	options = append(options, elastic.SetSniff(false))
+	options = append(options, elastic.SetHealthcheck(true))
+	options = append(options, elastic.SetHealthcheckInterval(10*time.Second))
+	options = append(options, els.SetRetrier(els.NewBackoffRetrier(els.NewSimpleBackoff(100, 100, 100, 100, 100))))
+	options = append(options, els.SetErrorLog(log.New()))
+	client, err = elastic.NewClient(options...)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func checkHealth() error {
+	_, err := client.CatHealth().Do(context.Background())
+	return err
 }
 
 func CreateMapping(key string, mapping string) error {
