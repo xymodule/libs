@@ -71,14 +71,14 @@ func reconnect() error {
 		client.Stop()
 	}
 
-	var options []elastic.ClientOptionFunc
-	options = append(options, elastic.SetURL(hosts))
-	options = append(options, elastic.SetSniff(false))
-	options = append(options, elastic.SetHealthcheck(true))
-	options = append(options, elastic.SetHealthcheckInterval(10*time.Second))
+	var options []els.ClientOptionFunc
+	options = append(options, els.SetURL(hosts...))
+	options = append(options, els.SetSniff(false))
+	options = append(options, els.SetHealthcheck(true))
+	options = append(options, els.SetHealthcheckInterval(10*time.Second))
 	options = append(options, els.SetRetrier(els.NewBackoffRetrier(els.NewSimpleBackoff(100, 100, 100, 100, 100))))
 	options = append(options, els.SetErrorLog(log.New()))
-	client, err = elastic.NewClient(options...)
+	client, err = els.NewClient(options...)
 	if err != nil {
 		return err
 	}
