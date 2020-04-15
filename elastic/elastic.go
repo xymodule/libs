@@ -33,20 +33,21 @@ func Init(description map[string]string, nodes ...string) {
 	options = append(options, els.SetErrorLog(log.New()))
 	client, err = els.NewClient(options...)
 	if err != nil {
-		panic(err)
+		log.Panicf("Elasticsearch err %v", err)
 	}
 	info, code, err := client.Ping(nodes[0]).Do(context.Background())
 	if err != nil {
-		panic(err)
+		log.Panicf("Elasticsearch err %v", err)
 	}
 	log.Infof("Elasticsearch returned with code %d and version %s\n", code, info.Version.Number)
 
 	esversion, err := client.ElasticsearchVersion(nodes[0])
 	if err != nil {
-		panic(err)
+		log.Panicf("Elasticsearch err %v", err)
 	}
 	log.Infof("Elasticsearch version %s\n", esversion)
 	go func() {
+		defer recovery()
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 		for {
@@ -63,6 +64,12 @@ func Init(description map[string]string, nodes ...string) {
 		}
 	}()
 	//PutMapping().Index(testIndexName3).Type("doc").BodyString(mapping).Do(context.TODO())
+}
+
+func recovery() {
+	if r := recover(); r != nil {
+		log.Errorf("Elasticsearch recovered:", r)
+	}
 }
 
 func reconnect() error {
@@ -86,6 +93,9 @@ func reconnect() error {
 }
 
 func checkHealth() error {
+	if client == nil {
+		return fmt.Errorf("elastic checkHealth client is nil")
+	}
 	_, err := client.CatHealth().Do(context.Background())
 	return err
 }
@@ -120,6 +130,9 @@ func NewBoolQuery(must map[string]string, should map[string]string) *els.BoolQue
 }
 
 func Create(key string, id int64, message proto.Message) error {
+	if client == nil {
+		return fmt.Errorf("elastic Create client is nil")
+	}
 	tpy, ok := databases[key]
 	if !ok {
 		return fmt.Errorf("elastic create key %v not exist in indices", key)
@@ -134,6 +147,9 @@ func Create(key string, id int64, message proto.Message) error {
 }
 
 func Get(key string, id int64) (interface{}, error) {
+	if client == nil {
+		return nil, fmt.Errorf("elastic Get client is nil")
+	}
 	tpy, ok := databases[key]
 	if !ok {
 		return nil, fmt.Errorf("elastic query key %v not exist in indices", key)
@@ -157,6 +173,9 @@ func newMessageByName(name string) interface{} {
 }
 
 func Delete(key string, id int64) error {
+	if client == nil {
+		return fmt.Errorf("elastic Delete client is nil")
+	}
 	tpy, ok := databases[key]
 	if !ok {
 		return fmt.Errorf("elastic del key %v not exist in indices", key)
@@ -169,6 +188,9 @@ func Delete(key string, id int64) error {
 }
 
 func DeleteByQuery(key string, cond *els.BoolQuery) error {
+	if client == nil {
+		return fmt.Errorf("elastic DeleteByQuery client is nil")
+	}
 	_, ok := databases[key]
 	if !ok {
 		return fmt.Errorf("elastic del by query key %v not exist in indices", key)
@@ -178,6 +200,9 @@ func DeleteByQuery(key string, cond *els.BoolQuery) error {
 }
 
 func SaveOrUpdate(key string, id int64, message proto.Message) error {
+	if client == nil {
+		return fmt.Errorf("elastic SaveOrUpdate client is nil")
+	}
 	tpy, ok := databases[key]
 	if !ok {
 		return fmt.Errorf("elastic update key %v not exist in indices", key)
@@ -193,6 +218,9 @@ func SaveOrUpdate(key string, id int64, message proto.Message) error {
 }
 
 func Update(key string, id int64, message proto.Message) error {
+	if client == nil {
+		return fmt.Errorf("elastic Update client is nil")
+	}
 	tpy, ok := databases[key]
 	if !ok {
 		return fmt.Errorf("elastic update key %v not exist in indices", key)
@@ -207,6 +235,9 @@ func Update(key string, id int64, message proto.Message) error {
 }
 
 func SortBy(key string, cond *els.BoolQuery, page int, size int, field string, asc bool) (items []interface{}, err error) {
+	if client == nil {
+		return nil, fmt.Errorf("elastic SortBy client is nil")
+	}
 	tpy, ok := databases[key]
 	if !ok {
 		return nil, fmt.Errorf("elastic sort key %v not exist in indices", key)
@@ -229,6 +260,9 @@ func SortBy(key string, cond *els.BoolQuery, page int, size int, field string, a
 }
 
 func BoolQuery(key string, cond *els.BoolQuery, size int) (items []interface{}, err error) {
+	if client == nil {
+		return nil, fmt.Errorf("elastic BoolQuery client is nil")
+	}
 	tpy, ok := databases[key]
 	if !ok {
 		return nil, fmt.Errorf("elastic bool query key %v not exist in indices", key)
@@ -245,6 +279,9 @@ func BoolQuery(key string, cond *els.BoolQuery, size int) (items []interface{}, 
 }
 
 func Query(key string, page int, size int) (items []interface{}, err error) {
+	if client == nil {
+		return nil, fmt.Errorf("elastic Query client is nil")
+	}
 	tpy, ok := databases[key]
 	if !ok {
 		return nil, fmt.Errorf("elastic query list key %v not exist in indices", key)
@@ -266,6 +303,10 @@ func Query(key string, page int, size int) (items []interface{}, err error) {
 }
 
 func Exist(key string) bool {
+	if client == nil {
+		log.Errorf("elastic Exist client is nil")
+		return false
+	}
 	_, ok := databases[key]
 	if !ok {
 		return false
@@ -278,6 +319,9 @@ func Exist(key string) bool {
 }
 
 func Clear(key string) error {
+	if client == nil {
+		return fmt.Errorf("elastic Clear client is nil")
+	}
 	tpy, ok := databases[key]
 	if !ok {
 		return fmt.Errorf("elastic clear index %v not exist in indices", key)
