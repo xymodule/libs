@@ -147,6 +147,10 @@ func Create(key string, id int64, message proto.Message) error {
 }
 
 func Get(key string, id int64) (interface{}, error) {
+	return GetById(key, fmt.Sprintf("%v", id))
+}
+
+func GetById(key string, id string) (interface{}, error) {
 	if client == nil {
 		return nil, fmt.Errorf("elastic Get client is nil")
 	}
@@ -200,21 +204,7 @@ func DeleteByQuery(key string, cond *els.BoolQuery) error {
 }
 
 func SaveOrUpdate(key string, id int64, message proto.Message) error {
-	if client == nil {
-		return fmt.Errorf("elastic SaveOrUpdate client is nil")
-	}
-	tpy, ok := databases[key]
-	if !ok {
-		return fmt.Errorf("elastic update key %v not exist in indices", key)
-	}
-	_, err := client.Update().
-		Index(key).
-		Type(tpy).
-		Id(fmt.Sprintf("%v", id)).
-		Doc(message).
-		DocAsUpsert(true).
-		Do(context.Background())
-	return err
+	return SaveOrUpdateById(key, fmt.Sprintf("%v", id), message)
 }
 
 func SaveOrUpdateById(key string, id string, message proto.Message) error {
