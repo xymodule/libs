@@ -217,6 +217,24 @@ func SaveOrUpdate(key string, id int64, message proto.Message) error {
 	return err
 }
 
+func SaveOrUpdateById(key string, id string, message proto.Message) error {
+	if client == nil {
+		return fmt.Errorf("elastic SaveOrUpdate client is nil")
+	}
+	tpy, ok := databases[key]
+	if !ok {
+		return fmt.Errorf("elastic update key %v not exist in indices", key)
+	}
+	_, err := client.Update().
+		Index(key).
+		Type(tpy).
+		Id(id).
+		Doc(message).
+		DocAsUpsert(true).
+		Do(context.Background())
+	return err
+}
+
 func Update(key string, id int64, message proto.Message) error {
 	if client == nil {
 		return fmt.Errorf("elastic Update client is nil")
